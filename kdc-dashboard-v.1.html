@@ -286,7 +286,7 @@ body{font-family:var(--font);background:#fff;color:var(--gray-900);line-height:1
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
       <div class="sp-title" style="margin-bottom:0">영업 관리</div>
       <div style="display:flex;align-items:center;gap:6px">
-        <button onclick="runAutoSalesSheetMatch()" style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--blue);border:1px solid var(--blue);border-radius:6px;padding:4px 10px;background:#fff;cursor:pointer;font-family:var(--font);white-space:nowrap;transition:background .12s" onmouseover="this.style.background='var(--blue-light)'" onmouseout="this.style.background='#fff'">
+        <button onclick="openSalesSheetModal()" style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--blue);border:1px solid var(--blue);border-radius:6px;padding:4px 10px;background:#fff;cursor:pointer;font-family:var(--font);white-space:nowrap;transition:background .12s" onmouseover="this.style.background='var(--blue-light)'" onmouseout="this.style.background='#fff'">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
           영업시트 연동
         </button>
@@ -2339,7 +2339,9 @@ function transformApiData(rawData, year) {
       if (s.paid) sb.confirmed++;
     });
     c.batches = Object.values(batchesMap).sort((a,b) => a.month - b.month);
-    c.fee = c.students[0]?.tuition || 0;
+    // fee: API tuition 우선, 없으면 mock 데이터 fallback
+    const mockFee = getMockData(year).find(m => m.id === c.id)?.fee || 0;
+    c.fee = c.students[0]?.tuition || mockFee;
     return c;
   });
 }
