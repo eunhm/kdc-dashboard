@@ -737,7 +737,8 @@ body{font-family:var(--font);background:#fff;color:var(--gray-900);line-height:1
       <div style="display:flex;gap:8px">
         <button onclick="closeModal('salesSheetModal')" style="font-size:12px;padding:7px 16px;border:1px solid var(--gray-300);border-radius:7px;background:#fff;cursor:pointer;font-family:var(--font);color:var(--gray-600)">닫기</button>
         <button id="ssConnectBtn" onclick="runSalesSheetMatch()" class="btn-primary" style="font-size:12px;padding:7px 16px">매핑 시작</button>
-        <button id="ssSaveBtn" onclick="saveMappingToSheet(document.getElementById('ssModalTitle').textContent.replace('연동 결과 · ',''), _ssResultData).then(n => alert(n > 0 ? n+'건 저장됐어요!' : '저장할 새 데이터가 없어요.'))" class="btn-primary" style="font-size:12px;padding:7px 16px;display:none">💾 저장</button>
+        <span id="ssSavedAt" style="display:none;font-size:11px;color:var(--gray-400);margin-right:4px"></span>
+        <button id="ssSaveBtn" onclick="doSaveMapping()" class="btn-primary" style="font-size:12px;padding:7px 16px;display:none">저장</button>
         <button id="ssDownloadBtn" onclick="ssDownloadCurrentView()" class="excel-btn" style="font-size:12px;padding:7px 16px;display:none">
           <svg class="excel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           엑셀 다운로드 (<span id="ssDownloadCount">0</span>건)
@@ -2198,8 +2199,6 @@ async function fetchAllSalesSheets() {
       }
       results.push({ channel, rows });
       console.log(`✅ ${channel} 시트 로드: ${rows.length-1}건`);
-      console.log(`📋 헤더:`, rows[0]);
-      console.log(`📦 첫번째 데이터:`, rows[1]);
     }
   }
   return results;
@@ -2247,7 +2246,6 @@ async function fetchCourseData(year) {
       if (!res.ok) throw new Error('API 오류');
       const data = await res.json();
       console.log('✅ API 응답 성공:', data);
-      console.log('📦 첫번째 항목:', data.SearchList ? data.SearchList[0] : data[0]);
       if(data.lastUpdated) {
         const el = document.getElementById('dataUpdatedAt');
         if(el) el.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> Last updated ${data.lastUpdated}`;
@@ -2396,8 +2394,6 @@ async function initData() {
   // 구글 시트 자동 로드
   fetchAllSalesSheets().then(sheets => {
     if (sheets.length > 0) {
-      console.log('📋 헤더:', sheets[0].rows[0]);
-      console.log('📦 첫번째 데이터:', sheets[0].rows[1]);
     }
   });
 
@@ -3696,6 +3692,7 @@ function openSalesSheetModal() {
   document.getElementById('ssConnectBtn').style.opacity = '0.4';
   document.getElementById('ssConnectBtn').style.display = 'inline-flex';
   document.getElementById('ssSaveBtn').style.display = 'none';
+  document.getElementById('ssSavedAt').style.display = 'none';
   document.getElementById('ssDownloadBtn').style.display = 'none';
   document.getElementById('ssBackBtn').style.display = 'none';
   document.getElementById('ssStepSetup').style.display = 'flex';
@@ -3788,6 +3785,7 @@ function ssGoBack() {
   document.getElementById('ssModalSub').textContent = '채널을 선택하고 시트를 연동하세요';
   document.getElementById('ssConnectBtn').style.display = 'inline-flex';
   document.getElementById('ssSaveBtn').style.display = 'none';
+  document.getElementById('ssSavedAt').style.display = 'none';
   document.getElementById('ssDownloadBtn').style.display = 'none';
   document.getElementById('ssBackBtn').style.display = 'none';
 }
@@ -3872,6 +3870,20 @@ function processSheetRows(rows, channel, lmsKeyMap) {
 }
 
 // 결과 화면으로 전환
+async function doSaveMapping() {
+  const channel = document.getElementById('ssModalTitle').textContent.replace('연동 결과 · ','');
+  const n = await saveMappingToSheet(channel, _ssResultData);
+  if (n > 0) {
+    const now = new Date();
+    const dateStr = `${now.getMonth()+1}월 ${now.getDate()}일 ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} 저장`;
+    document.getElementById('ssSavedAt').textContent = dateStr;
+    document.getElementById('ssSavedAt').style.display = 'inline';
+    document.getElementById('ssSaveBtn').style.display = 'none';
+  } else {
+    alert('저장할 새 데이터가 없어요.');
+  }
+}
+
 function showResultStep(channel, totalRows, resultData, skippedData) {
   _ssResultData  = resultData;
   _ssSkippedData = skippedData;
