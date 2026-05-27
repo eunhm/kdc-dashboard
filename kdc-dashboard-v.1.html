@@ -1591,6 +1591,7 @@ function saveStatsBookmark(){
   const newId = Math.max(...statsBookmarks.map(b=>b.id), 0) + 1;
   statsBookmarks.push({ id:newId, title, cols:[] });
   localStorage.setItem('kdc_stats_bookmarks', JSON.stringify(statsBookmarks));
+  saveBookmarksToSheet().catch(e => console.warn('북마크 시트 저장 실패:', e));
   renderBookmarks();
   loadStats(newId);
   closeModal('statsAddModal');
@@ -2009,6 +2010,69 @@ async function fetchSheetByGid(gid) {
   }
 }
 
+
+async function fetchSheetByName(sheetName) {
+  try {
+    const token = await getAccessToken();
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_CONFIG.resultSheetId}/values/${encodeURIComponent(sheetName)}!A:Z`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await res.json();
+    return data.values || [];
+  } catch(e) {
+    console.error('시트 불러오기 실패:', e);
+    return null;
+  }
+}
+
+async function saveSheetByName(sheetName, rows) {
+  try {
+    const token = await getAccessToken();
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_CONFIG.resultSheetId}/values/${encodeURIComponent(sheetName)}!A:Z:clear`,
+      { method: 'POST', headers: { Authorization: `Bearer ${token}` } }
+    );
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_CONFIG.resultSheetId}/values/${encodeURIComponent(sheetName)}!A1?valueInputOption=RAW`,
+      {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: rows })
+      }
+    );
+    return true;
+  } catch(e) {
+    console.error('시트 저장 실패:', e);
+    return false;
+  }
+}
+
+async function saveBookmarksToSheet() {
+  const rows = [['id', '북마크명', '컬럼목록']];
+  statsBookmarks.forEach(b => rows.push([b.id, b.title, b.cols.join(',')]));
+  const ok = await saveSheetByName('통계북마크', rows);
+  if (ok) console.log('✅ 북마크 구글 시트 저장 완료');
+  return ok;
+}
+
+async function loadBookmarksFromSheet() {
+  const rows = await fetchSheetByName('통계북마크');
+  if (!rows || rows.length <= 1) return false;
+  const loaded = rows.slice(1).filter(r => r[0] && r[1] && r[2]).map(r => ({
+    id:    Number(r[0]),
+    title: r[1],
+    cols:  r[2].split(',').map(c => c.trim()).filter(Boolean),
+  }));
+  if (loaded.length > 0) {
+    statsBookmarks = loaded;
+    localStorage.setItem('kdc_stats_bookmarks', JSON.stringify(statsBookmarks));
+    console.log(`✅ 북마크 ${loaded.length}개 불러옴`);
+    return true;
+  }
+  return false;
+}
+
 async function saveSheetByGid(gid, rows) {
   try {
     const token = await getAccessToken();
@@ -2090,7 +2154,7 @@ async function loadQuotaSettings() {
 }
 
 async function loadAllSettings() {
-  await Promise.all([loadGroupSettings(), loadCommissionSettings(), loadQuotaSettings(), loadMappingFromSheet()]);
+  await Promise.all([loadGroupSettings(), loadCommissionSettings(), loadQuotaSettings(), loadMappingFromSheet(), loadBookmarksFromSheet()]);
   renderPartners(); renderAnnual(); renderCourses();
   console.log('✅ 모든 설정 불러오기 완료');
 }
@@ -3606,15 +3670,17 @@ function saveSheetUrl(channel, url) {
 // 모달 열기
 function openSalesSheetModal() {
   const sel = document.getElementById('ssChannelSelect');
-  // courses + allData 전체에서 채널 추출 (연도 무관하게 전체)
+  // allData 전체 연도에서 채널 추출
   const allPartners = new Set();
+  // 현재 로드된 courses
   courses.forEach(c => c.students.forEach(s => { if(s.partner) allPartners.add(s.partner); }));
-  if (typeof _apiAllData !== 'undefined') {
-    Object.values(_apiAllData).forEach(yearCourses => {
+  // allData 하드코딩 데이터 (전체 연도)
+  if (typeof allData !== 'undefined') {
+    Object.values(allData).forEach(yearCourses => {
       yearCourses.forEach(c => c.students.forEach(s => { if(s.partner) allPartners.add(s.partner); }));
     });
   }
-  const channelList = [...allPartners].sort();
+  const channelList = [...allPartners].filter(Boolean).sort();
   sel.innerHTML = '<option value="">채널을 선택하세요</option>' +
     channelList.map(ch => `<option value="${ch}">${ch}</option>`).join('');
   document.getElementById('ssFileName').textContent = '파일을 선택하세요 (.csv)';
