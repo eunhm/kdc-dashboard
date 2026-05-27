@@ -3967,10 +3967,8 @@ async function runAutoSalesSheetMatch() {
 
   renderPartners();
 
-  // 모달 초기화 (채널 셀렉트 포함)
-  const sel = document.getElementById('ssChannelSelect');
-  sel.innerHTML = `<option value="${channelNames}">${channelNames}</option>`;
-  sel.value = channelNames;
+  // 선택된 채널 값만 유지 (드롭다운 옵션은 건드리지 않음)
+  document.getElementById('ssChannelSelect').value = channelNames;
 
   // 결과 화면으로 바로 전환
   document.getElementById('ssStepSetup').style.display = 'none';
