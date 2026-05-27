@@ -2116,16 +2116,14 @@ async function getAccessToken() {
   return access_token;
 }
 
-// API 전체 데이터 캐시 (연도 필터링을 클라이언트에서 처리)
+// API 호출 함수 — USE_MOCK=false 시 실제 API 호출
 let _apiAllData = null;
 
-// API 호출 함수 — USE_MOCK=false 시 실제 API 호출
 async function fetchCourseData(year) {
   if (API_CONFIG.USE_MOCK || !API_CONFIG.BASE_URL) {
     return getMockData(year);
   }
   try {
-    // 캐시가 없을 때만 API 호출
     if (!_apiAllData) {
       const res = await fetch(API_CONFIG.BASE_URL);
       if (!res.ok) throw new Error('API 오류');
@@ -2138,7 +2136,6 @@ async function fetchCourseData(year) {
       }
       _apiAllData = data;
     }
-    // 연도 필터링은 클라이언트에서 처리
     return transformApiData(_apiAllData, year);
   } catch (err) {
     console.error('❌ API 호출 실패:', err.message);
@@ -2147,7 +2144,6 @@ async function fetchCourseData(year) {
   }
 }
 
-// API에서 사용 가능한 연도 목록 추출
 async function fetchAvailableYears() {
   if (API_CONFIG.USE_MOCK || !API_CONFIG.BASE_URL) return null;
   try {
@@ -2159,16 +2155,13 @@ async function fetchAvailableYears() {
     const rows = _apiAllData.SearchList || (Array.isArray(_apiAllData) ? _apiAllData : []);
     const years = [...new Set(rows.map(r => r['EDU_YEAR']).filter(Boolean))].sort((a,b) => b-a);
     return years.length > 0 ? years : null;
-  } catch(e) {
-    return null;
-  }
+  } catch(e) { return null; }
 }
 
-// API 응답을 내부 포맷으로 변환 — year로 클라이언트 필터링
+// API 응답을 내부 포맷으로 변환 — API 스펙 확정 후 작성
 function transformApiData(rawData, year) {
   // API 응답 구조: { ErrorCode, ErrorMessage, IsError, SearchCount, SearchList, TotalCount }
   let rawRows = rawData.SearchList || (Array.isArray(rawData) ? rawData : []);
-  // 연도 필터링 (클라이언트에서 처리)
   if (year) {
     rawRows = rawRows.filter(r => String(r['EDU_YEAR']) === String(year));
   }
@@ -2187,6 +2180,7 @@ function transformApiData(rawData, year) {
         group: row['EDUGRP_NM'] || '',
         year: parseInt(row['EDU_YEAR']) || new Date().getFullYear(),
         month: parseInt(row['EDU_MONTH']) || 1,
+        status: 'active',
         students: []
       };
     }
@@ -2199,6 +2193,7 @@ function transformApiData(rawData, year) {
       partner:     row['DEPT_NM']      || '',
       completed:   row['FNSH_YN']      === 'Y',
       closed:      row['CLSNG_YN']     === 'Y',
+      processed:   row['CLSNG_YN']     === 'Y',
       paid:        row['PAYMENT']       === 'Y',
       progress:    row['PRGRT']        || 0,
       score:       row['TSCR']         || 0,
@@ -2254,15 +2249,10 @@ async function initData() {
   const yearSelect = document.getElementById('yearSelect');
   const thisYear = new Date().getFullYear();
   let allYears = [];
-
-  // API 모드면 API 데이터에서 연도 추출, 아니면 목업에서 추출
   if (!API_CONFIG.USE_MOCK && API_CONFIG.BASE_URL) {
     const apiYears = await fetchAvailableYears();
-    if (apiYears && apiYears.length > 0) {
-      allYears = apiYears;
-    }
+    if (apiYears && apiYears.length > 0) allYears = apiYears;
   }
-
   if (allYears.length === 0) {
     for(let y = thisYear + 1; y >= thisYear - 5; y--) {
       try {
