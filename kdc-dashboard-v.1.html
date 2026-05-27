@@ -692,7 +692,7 @@ body{font-family:var(--font);background:#fff;color:var(--gray-900);line-height:1
     </div>
 
     <!-- STEP 2: 매핑 결과 화면 -->
-    <div id="ssStepResult" style="display:none;flex:1;overflow-y:auto;flex-direction:column">
+    <div id="ssStepResult" style="display:none;flex:1;overflow-y:auto;flex-direction:column;min-height:0">
       <!-- 요약 카드 (클릭 가능) -->
       <div style="padding:16px 24px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
         <div onclick="filterResTable('all')" id="ssCard-all" style="background:var(--gray-50);border-radius:10px;padding:12px 14px;text-align:center;cursor:pointer;border:2px solid transparent;transition:all .15s" onmouseover="this.style.borderColor='var(--gray-400)'" onmouseout="if(_ssCurrentFilter!=='all')this.style.borderColor='transparent'">
@@ -2213,7 +2213,7 @@ async function getAccessToken() {
   const header = btoa(JSON.stringify({ alg:'RS256', typ:'JWT' })).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
   const claim = btoa(JSON.stringify({
     iss: GOOGLE_CONFIG.client_email,
-    scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
     aud: 'https://oauth2.googleapis.com/token',
     exp: now + 3600, iat: now
   })).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
@@ -3885,6 +3885,7 @@ function showResultStep(channel, totalRows, resultData, skippedData) {
 
   document.getElementById('ssStepSetup').style.display = 'none';
   document.getElementById('ssStepResult').style.display = 'flex';
+  document.getElementById('ssStepResult').style.flexDirection = 'column';
   document.getElementById('ssModalTitle').textContent = `연동 결과 · ${channel}`;
   document.getElementById('ssModalSub').textContent = `총 ${totalRows}건 처리`;
   document.getElementById('ssConnectBtn').style.display = 'none';
