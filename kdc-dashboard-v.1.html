@@ -3798,6 +3798,14 @@ function showResultStep(channel, totalRows, resultData, skippedData) {
   window._ssResultData  = resultData;
   window._ssSkippedData = skippedData;
 
+  // 매핑 성공 건 자동 저장
+  const okResults = resultData.filter(r => r.status === 'ok');
+  if (okResults.length > 0) {
+    saveMappingToSheet(channel, resultData).then(saved => {
+      if (saved > 0) console.log(`✅ 구글 시트에 ${saved}건 자동 저장됨`);
+    }).catch(e => console.warn('자동 저장 실패:', e));
+  }
+
   const ok   = resultData.filter(r => r.status==='ok').length;
   const none = resultData.filter(r => r.status==='none').length;
   const amb  = resultData.filter(r => r.status==='amb').length;
