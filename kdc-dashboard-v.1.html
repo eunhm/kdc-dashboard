@@ -2246,9 +2246,11 @@ async function fetchCourseData(year) {
       if (!res.ok) throw new Error('API 오류');
       const data = await res.json();
       console.log('✅ API 응답 성공:', data);
-      if(data.lastUpdated) {
-        const el = document.getElementById('dataUpdatedAt');
-        if(el) el.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> Last updated ${data.lastUpdated}`;
+      const el = document.getElementById('dataUpdatedAt');
+      if(el) {
+        const now = new Date();
+        const ts = data.lastUpdated || `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        el.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> Last updated ${ts}`;
       }
       _apiAllData = data;
     }
