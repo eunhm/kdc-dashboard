@@ -2600,9 +2600,9 @@ function renderAnnual(){
   const confirmedRev = courses.reduce((s,c)=>
     s + c.students.filter(s=>s.processed).length * (c.fee||0)
   , 0);
-  // 전체매출 = 전체 승인 인원 × 교육비
+  // 전체매출 = 입과인원(batches confirmed 합산) × 교육비
   const totalRev = courses.reduce((s,c)=>
-    s + c.students.filter(s=>s.paid).length * (c.fee||0)
+    s + c.batches.reduce((bs,b)=>bs+(b.confirmed||0),0) * (c.fee||0)
   , 0);
   // 예상매출 = 전체 - 확정
   const expectedRevAmt = totalRev - confirmedRev;
@@ -3670,16 +3670,15 @@ function saveSheetUrl(channel, url) {
 // 모달 열기
 function openSalesSheetModal() {
   const sel = document.getElementById('ssChannelSelect');
-  // allData 전체 연도에서 채널 추출
+  // getMockData()로 전체 연도 데이터에서 채널 추출
   const allPartners = new Set();
-  // 현재 로드된 courses
+  ['2025','2026'].forEach(y => {
+    getMockData(Number(y)).forEach(c =>
+      c.students.forEach(s => { if(s.partner) allPartners.add(s.partner); })
+    );
+  });
+  // 현재 로드된 courses도 포함 (실제 API 데이터 대비)
   courses.forEach(c => c.students.forEach(s => { if(s.partner) allPartners.add(s.partner); }));
-  // allData 하드코딩 데이터 (전체 연도)
-  if (typeof allData !== 'undefined') {
-    Object.values(allData).forEach(yearCourses => {
-      yearCourses.forEach(c => c.students.forEach(s => { if(s.partner) allPartners.add(s.partner); }));
-    });
-  }
   const channelList = [...allPartners].filter(Boolean).sort();
   sel.innerHTML = '<option value="">채널을 선택하세요</option>' +
     channelList.map(ch => `<option value="${ch}">${ch}</option>`).join('');
