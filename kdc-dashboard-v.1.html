@@ -3588,6 +3588,9 @@ document.querySelectorAll('.overlay,.sm-overlay').forEach(el=>
 let savedSheetUrls = JSON.parse(localStorage.getItem('kdc_sheet_urls') || '{}');
 
 // ─── 영업시트 연동 ───────────────────────────────────────────────
+let _ssCurrentFilter = 'all';
+let _ssResultData    = [];
+let _ssSkippedData   = [];
 
 // localStorage에서 채널별 시트 URL 가져오기/저장하기
 function getSavedSheetUrls() {
@@ -3658,6 +3661,22 @@ function updateSsConnectBtn() {
 }
 
 // CSV 파일 업로드 처리
+function makeMatchKey(name, phone, date, courseName) {
+  const n = (name||'').replace(/\*/g,'').replace(/\s/g,'');
+  const p = (phone||'').replace(/[^0-9]/g,'').slice(-4);
+  const d = date && date.match(/^\d{2}-/) ? '20'+date : (date||'');
+  const c = (courseName||'').replace(/\s/g,'').slice(0,10);
+  return `${n}|${p}|${d}|${c}`;
+}
+
+function cancelSalesSheetFile() {
+  window._ssSheetData = null;
+  document.getElementById('ssFileInput').value = '';
+  document.getElementById('ssFileName').textContent = '파일을 선택하세요 (.csv)';
+  document.getElementById('ssCancelFileBtn').style.display = 'none';
+  updateSsConnectBtn();
+}
+
 function handleSalesSheetFile(input) {
   const file = input.files[0];
   if (!file) return;
@@ -3864,20 +3883,35 @@ async function runAutoSalesSheetMatch() {
 
   renderPartners();
 
-  // 채널 선택 셀렉트 업데이트 (결과 화면에서 채널명 표시용)
+  // 모달 초기화 (채널 셀렉트 포함)
   const sel = document.getElementById('ssChannelSelect');
   sel.innerHTML = `<option value="${channelNames}">${channelNames}</option>`;
   sel.value = channelNames;
 
+  // 결과 화면으로 바로 전환
   document.getElementById('ssStepSetup').style.display = 'none';
-  showResultStep(channelNames, allTotal, allResult, allSkipped);
+  document.getElementById('ssStepResult').style.display = 'flex';
+  document.getElementById('ssConnectBtn').style.display = 'none';
+  document.getElementById('ssBackBtn').style.display = 'inline-flex';
+  document.getElementById('ssModalTitle').textContent = `연동 결과 · ${channelNames}`;
+  document.getElementById('ssModalSub').textContent = `총 ${allTotal}건 처리`;
+  document.getElementById('ssDownloadBtn').style.display = 'inline-flex';
+
+  document.getElementById('ssResTotal').textContent     = allTotal;
+  document.getElementById('ssResSkipped').textContent   = allSkipped.length;
+  document.getElementById('ssResTried').textContent     = allResult.filter(r=>['ok','none','amb'].includes(r.status)).length;
+  document.getElementById('ssResMatched').textContent   = allResult.filter(r=>r.status==='ok').length;
+  document.getElementById('ssResUnmatched').textContent = allResult.filter(r=>r.status==='none').length;
+
+  _ssResultData  = allResult;
+  _ssSkippedData = allSkipped;
+  _ssCurrentFilter = 'all';
+  filterResTable('all');
+
   document.getElementById('salesSheetModal').classList.add('open');
 }
 
-// 카드 클릭 필터링
-let _ssCurrentFilter = 'all';
-let _ssResultData    = [];
-let _ssSkippedData   = [];
+
 
 function filterResTable(filter) {
   _ssCurrentFilter = filter;
