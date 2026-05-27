@@ -3587,12 +3587,20 @@ document.querySelectorAll('.overlay,.sm-overlay').forEach(el=>
 // 채널별 구글시트 URL 저장
 let savedSheetUrls = JSON.parse(localStorage.getItem('kdc_sheet_urls') || '{}');
 
+// ─── 영업시트 연동 ───────────────────────────────────────────────
+
+// localStorage에서 채널별 시트 URL 가져오기/저장하기
+function getSavedSheetUrls() {
+  try { return JSON.parse(localStorage.getItem('kdc_sheet_urls') || '{}'); } catch(e) { return {}; }
+}
 function saveSheetUrl(channel, url) {
   if (!channel || !url) return;
-  savedSheetUrls[channel] = url;
-  localStorage.setItem('kdc_sheet_urls', JSON.stringify(savedSheetUrls));
+  const saved = getSavedSheetUrls();
+  saved[channel] = url;
+  localStorage.setItem('kdc_sheet_urls', JSON.stringify(saved));
 }
 
+// 모달 열기
 function openSalesSheetModal() {
   const sel = document.getElementById('ssChannelSelect');
   sel.innerHTML = '<option value="">채널을 선택하세요</option>' +
@@ -3603,40 +3611,36 @@ function openSalesSheetModal() {
   document.getElementById('ssDataSection').style.display = 'none';
   document.getElementById('ssConnectBtn').disabled = true;
   document.getElementById('ssConnectBtn').style.opacity = '0.4';
-  window._ssSheetData = null;
+  document.getElementById('ssConnectBtn').style.display = 'inline-flex';
+  document.getElementById('ssDownloadBtn').style.display = 'none';
+  document.getElementById('ssBackBtn').style.display = 'none';
+  document.getElementById('ssStepSetup').style.display = 'flex';
+  document.getElementById('ssStepResult').style.display = 'none';
   document.getElementById('ssModalTitle').textContent = '영업시트 연동';
-  document.getElementById('ssModalSub').textContent = '채널을 선택하고 CSV 파일을 업로드하세요';
+  document.getElementById('ssModalSub').textContent = '채널을 선택하고 시트를 연동하세요';
   window._ssSheetData = null;
+  window._ssResultData = [];
+  window._ssSkippedData = [];
   document.getElementById('salesSheetModal').classList.add('open');
 }
 
+// 채널 선택 시 - 저장된 URL 자동 채우기, 데이터 섹션 표시
 function onChannelSelect() {
   const channel = document.getElementById('ssChannelSelect').value;
   const section = document.getElementById('ssDataSection');
-  if (!channel) {
-    section.style.display = 'none';
-    return;
-  }
+  if (!channel) { section.style.display = 'none'; return; }
   section.style.display = 'flex';
-
-  // 저장된 URL 불러오기
-  const saved = JSON.parse(localStorage.getItem('kdc_sheet_urls') || '{}');
-  const urlInput = document.getElementById('ssSheetUrlInput');
-  urlInput.value = saved[channel] || '';
-
-  // 매핑 버튼 상태 업데이트
+  const saved = getSavedSheetUrls();
+  document.getElementById('ssSheetUrlInput').value = saved[channel] || '';
   updateSsConnectBtn();
 }
 
+// URL 입력 시 - 채널별 저장, CSV 초기화, 버튼 상태 업데이트
 function onSheetUrlInput() {
-  // URL 입력 시 채널별 저장 + CSV 초기화
   const channel = document.getElementById('ssChannelSelect').value;
   const url = document.getElementById('ssSheetUrlInput').value.trim();
   if (channel && url) {
-    const saved = JSON.parse(localStorage.getItem('kdc_sheet_urls') || '{}');
-    saved[channel] = url;
-    localStorage.setItem('kdc_sheet_urls', JSON.stringify(saved));
-    // CSV 데이터 초기화
+    saveSheetUrl(channel, url);
     window._ssSheetData = null;
     document.getElementById('ssFileName').textContent = '파일을 선택하세요 (.csv)';
     document.getElementById('ssCancelFileBtn').style.display = 'none';
@@ -3644,6 +3648,7 @@ function onSheetUrlInput() {
   updateSsConnectBtn();
 }
 
+// 매핑 시작 버튼 활성화 조건: URL 또는 CSV 중 하나라도 있으면
 function updateSsConnectBtn() {
   const url = document.getElementById('ssSheetUrlInput').value.trim();
   const hasCsv = !!window._ssSheetData;
@@ -3651,381 +3656,267 @@ function updateSsConnectBtn() {
   btn.disabled = !url && !hasCsv;
   btn.style.opacity = (!url && !hasCsv) ? '0.4' : '1';
 }
-function checkSsReady() {}
-function clearSavedUrl() {}
-function switchSsTab() {}
 
-function cancelSalesSheetFile() {
-  window._ssSheetData = null;
-  document.getElementById('ssFileInput').value = '';
-  document.getElementById('ssFileName').textContent = '파일을 선택하세요 (.csv)';
-  document.getElementById('ssFileName').style.color = 'var(--gray-400)';
-  document.getElementById('ssLoadResult').style.display = 'none';
-  document.getElementById('ssCancelFileBtn').style.display = 'none';
-  updateSsConnectBtn();
-}
-
+// CSV 파일 업로드 처리
 function handleSalesSheetFile(input) {
   const file = input.files[0];
   if (!file) return;
-  document.getElementById('ssFileName').textContent = file.name;
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = e => {
     const text = e.target.result;
-    const rows = text.trim().split('\n').map(line => {
-      const result = [];
-      let cur = '', inQ = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') { inQ = !inQ; }
-        else if (ch === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
-        else { cur += ch; }
-      }
-      result.push(cur.trim());
-      return result;
-    });
+    const rows = text.split('\n').map(r => r.split(',').map(c => c.replace(/^"|"$/g,'').trim()));
+    if (rows.length <= 1) { alert('데이터가 없어요.'); return; }
     window._ssSheetData = rows;
-    const result = document.getElementById('ssLoadResult');
-    result.style.display = 'block';
-    result.style.background = 'var(--success-light)';
-    result.style.color = '#027A48';
-    result.innerHTML = `✅ ${file.name} · 총 <strong>${rows.length - 1}행</strong> 불러옴`;
+    document.getElementById('ssFileName').textContent = `${file.name} · ${rows.length - 1}행`;
     document.getElementById('ssCancelFileBtn').style.display = 'block';
-    // CSV 올리면 URL 무효화
     document.getElementById('ssSheetUrlInput').value = '';
     updateSsConnectBtn();
   };
   reader.readAsText(file, 'UTF-8');
 }
 
-let _ssResultData = []; // {status:'ok'|'amb'|'none', sheetRow, matchedStudent, rep, candidates}
+// CSV 취소
 
-function makeMatchKey(name, phone, date, courseName) {
-  const n = name.replace(/\*/g, '').trim();
-  const nameKey = n.length >= 2 ? n[0] + n[n.length-1] : n;
-  const phoneKey = phone.replace(/[^0-9]/g,'').slice(-4);
-  const dateOrig = String(date).replace(/\./g,'-').trim();
-  const dateKey = dateOrig.match(/^\d{2}-/) ? '20' + dateOrig : dateOrig;
-  // 과정명은 소문자+공백제거로 정규화 (대소문자/공백 차이 무시)
-  const courseKey = (courseName||'').toLowerCase().replace(/\s/g,'');
-  return `${nameKey}_${phoneKey}_${dateKey}_${courseKey}`;
+
+// 다시 설정 버튼
+function ssGoBack() {
+  document.getElementById('ssStepSetup').style.display = 'flex';
+  document.getElementById('ssStepResult').style.display = 'none';
+  document.getElementById('ssModalTitle').textContent = '영업시트 연동';
+  document.getElementById('ssModalSub').textContent = '채널을 선택하고 시트를 연동하세요';
+  document.getElementById('ssConnectBtn').style.display = 'inline-flex';
+  document.getElementById('ssDownloadBtn').style.display = 'none';
+  document.getElementById('ssBackBtn').style.display = 'none';
 }
 
-// 구글 시트 자동 매칭 실행
-async function runAutoSalesSheetMatch() {
-  const sheets = await fetchAllSalesSheets();
-  if (sheets.length === 0) { alert('구글 시트 데이터를 불러오지 못했어요.'); return; }
+// 이름/전화/날짜/과정명으로 매핑 키 생성
 
-  // NO(0)|팀명(1)|학생이름(2)|전화번호(3)|과정명(4)|훈련시작(5)|훈련종료(6)|자부담금(7)
-  const COL_REP = 1, COL_NAME = 2, COL_PHONE = 3, COL_COURSE = 4, COL_DATE = 5;
 
-  // LMS 전체 키맵 (진행중 + 교육 전만, 종료 제외)
-  const lmsKeyMap = {};
+// LMS 키맵 생성 (종료 차수 제외)
+function buildLmsKeyMap() {
+  const map = {};
   courses.forEach(c => {
     c.students.filter(s => s.status !== '종료').forEach(s => {
       const key = makeMatchKey(s.name, s.phone, s.openDate, c.name);
-      if (!lmsKeyMap[key]) lmsKeyMap[key] = [];
-      lmsKeyMap[key].push({ s, course: c.name });
+      if (!map[key]) map[key] = [];
+      map[key].push({ s, course: c.name });
     });
   });
-
-  _ssResultData = [];
-  _ssSkippedData = [];
-  let totalRows = 0, skippedRows = 0;
-
-  sheets.forEach(({ channel, rows }) => {
-    const dataRows = rows.slice(1).filter(r => r.some(c => c));
-    dataRows.forEach(row => {
-      const nameRaw  = String(row[COL_NAME]  ||'').trim();
-      const phoneRaw = String(row[COL_PHONE] ||'').trim();
-      const dateRaw  = String(row[COL_DATE]  ||'').replace(/\./g,'-').trim();
-      const courseRaw= String(row[COL_COURSE]||'').trim();
-      const rep      = String(row[COL_REP]   ||'').trim();
-      if (!rep || !nameRaw) return;
-      totalRows++;
-
-      const endDateRaw = String(row[COL_DATE + 1]||'').replace(/\./g,'-').trim();
-      const endDate = endDateRaw.match(/^\d{2}-/) ? '20' + endDateRaw : endDateRaw;
-      if (endDate && new Date(endDate) < new Date()) {
-        skippedRows++;
-        _ssSkippedData.push({ rep, nameRaw, dateRaw: String(row[COL_DATE]||'').replace(/\./g,'-').trim(), phoneRaw, courseRaw });
-        return;
-      }
-
-      const key = makeMatchKey(nameRaw, phoneRaw, dateRaw, courseRaw);
-      const hits = lmsKeyMap[key] || [];
-
-      if (hits.length === 1) {
-        hits[0].s.salesRep = rep;
-        if (!hits[0].s.partner) hits[0].s.partner = channel;
-        _ssResultData.push({ status:'ok', rep, nameRaw, dateRaw, phoneRaw, courseRaw, matched: hits[0] });
-      } else if (hits.length > 1) {
-        _ssResultData.push({ status:'amb', rep, nameRaw, dateRaw, phoneRaw, courseRaw, candidates: hits });
-      } else {
-        const n = nameRaw.replace(/\*/g,'').trim();
-        const csvNameFirst = n[0], csvNameLast = n[n.length-1];
-        const csvPhone = phoneRaw.replace(/[^0-9]/g,'').slice(-4);
-        const csvDate  = dateRaw.match(/^\d{2}-/) ? '20'+dateRaw : dateRaw;
-        let nameMatch = false, phoneMatch = false, dateMatch = false;
-        courses.forEach(c => {
-          c.students.forEach(s => {
-            const sn = s.name.replace(/\*/g,'').trim();
-            const sp = s.phone.replace(/[^0-9]/g,'').slice(-4);
-            if (sn[0]===csvNameFirst && sn[sn.length-1]===csvNameLast) nameMatch = true;
-            if (sp === csvPhone) phoneMatch = true;
-            if (s.openDate === csvDate) dateMatch = true;
-          });
-        });
-        const reasons = [];
-        if (!nameMatch)  reasons.push('이름 불일치');
-        if (!phoneMatch) reasons.push('전화번호 불일치');
-        if (!dateMatch)  reasons.push('개강일 불일치');
-        if (reasons.length === 0) reasons.push('LMS 미등록');
-        _ssResultData.push({ status:'none', rep, nameRaw, dateRaw, phoneRaw, courseRaw, reasons });
-      }
-    });
-  });
-
-  renderPartners();
-
-  const ok   = _ssResultData.filter(r => r.status==='ok').length;
-  const none = _ssResultData.filter(r => r.status==='none').length;
-  const channelNames = sheets.map(s => s.channel).join(', ');
-
-  // 모달로 결과 표시
-  document.getElementById('ssStepSetup').style.display = 'none';
-  document.getElementById('ssStepResult').style.display = 'flex';
-  document.getElementById('ssModalTitle').textContent = `연동 결과 · ${channelNames}`;
-  document.getElementById('ssModalSub').textContent = `총 ${totalRows}건 처리`;
-  document.getElementById('ssConnectBtn').style.display = 'none';
-  document.getElementById('ssSaveBtn').style.display = 'none';
-  document.getElementById('ssBackBtn').style.display = 'inline-flex';
-
-  document.getElementById('ssResTotal').textContent    = totalRows;
-  document.getElementById('ssResSkipped').textContent  = skippedRows;
-  document.getElementById('ssResTried').textContent    = ok + none;
-  document.getElementById('ssResMatched').textContent  = ok;
-  document.getElementById('ssResUnmatched').textContent= none;
-
-  document.getElementById('ssDownloadBtn').style.display = 'inline-flex';
-  _ssCurrentFilter = 'all';
-  filterResTable('all');
-  document.getElementById('salesSheetModal').classList.add('open');
+  return map;
 }
 
-async function runSheetUrlMatch() {
-  const channel = document.getElementById('ssChannelSelect').value;
-  if (!channel) {
-    alert('영업채널을 먼저 선택해주세요!');
-    document.getElementById('ssChannelSelect').focus();
-    return;
-  }
-  const urlInput = document.getElementById('ssSheetUrlInput').value.trim();
-  if (!urlInput) { alert('구글 시트 URL을 입력해주세요!'); return; }
-
-  // URL에서 시트 ID 추출
-  const match = urlInput.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-  if (!match) { alert('올바른 구글 시트 URL이 아니에요.'); return; }
-  const sheetId = match[1];
-
-  const btn = document.getElementById('ssSheetUrlInput').nextElementSibling;
-  btn.textContent = '불러오는 중...';
-  btn.disabled = true;
-
-  try {
-    const rows = await fetchGoogleSheet(sheetId);
-    if (!rows || rows.length <= 1) {
-      alert('시트에서 데이터를 가져오지 못했어요.\n시트 공유 설정을 확인해주세요.');
-      btn.textContent = '연동';
-      btn.disabled = false;
-      return;
-    }
-
-    // CSV처럼 처리
-    window._ssSheetData = rows;
-    document.getElementById('ssFileName').textContent = `구글 시트 연동됨 · ${rows.length - 1}행`;
-    document.getElementById('ssLoadResult').style.display = 'block';
-    document.getElementById('ssLoadResult').style.background = 'var(--success-light)';
-    document.getElementById('ssLoadResult').style.color = '#027A48';
-    document.getElementById('ssLoadResult').innerHTML = `✅ 구글 시트 연동 성공 · 총 <strong>${rows.length - 1}행</strong> 불러옴`;
-    updateSsConnectBtn();
-
-    // URL을 채널별로 저장
-    const saved = JSON.parse(localStorage.getItem('kdc_sheet_urls') || '{}');
-    saved[channel] = urlInput;
-    localStorage.setItem('kdc_sheet_urls', JSON.stringify(saved));
-
-  } catch(e) {
-    alert('시트 불러오기 실패: ' + e.message);
-  }
-
-  btn.textContent = '연동';
-  btn.disabled = false;
-}
-
-async function runSalesSheetMatch() {
-  const channel = document.getElementById('ssChannelSelect').value;
-  if (!channel) { 
-    alert('영업채널을 선택해주세요!'); 
-    const sel = document.getElementById('ssChannelSelect');
-    sel.style.borderColor = 'var(--blue)';
-    sel.style.borderWidth = '2.5px';
-    sel.style.boxShadow = '0 0 0 3px rgba(21,112,239,0.2)';
-    sel.focus();
-    setTimeout(() => {
-      sel.style.borderWidth = '1px';
-      sel.style.boxShadow = '';
-    }, 2000);
-    return; 
-  }
-  // URL 입력됐으면 먼저 시트 불러오기
-  const urlVal = document.getElementById('ssSheetUrlInput').value.trim();
-  if (!window._ssSheetData && urlVal) {
-    await runSheetUrlMatch(true); // silent mode
-    if (!window._ssSheetData) return;
-  }
-  if (!window._ssSheetData) { 
-    alert('구글 시트 URL을 입력하거나 CSV 파일을 업로드해주세요!'); 
-    return; 
-  }
-
-  const COL_REP = 1, COL_NAME = 2, COL_PHONE = 3, COL_COURSE = 4, COL_DATE = 5;
-
-  const allRows = window._ssSheetData.slice(1).filter(r => r.some(c => c));
-  _ssResultData = [];
-
-  // LMS 키맵 - 종료된 차수 제외
-  const lmsKeyMap = {};
+// 매핑 실패 이유 분석
+function analyzeFailReason(nameRaw, phoneRaw, dateRaw) {
+  const n = nameRaw.replace(/\*/g,'').trim();
+  const csvPhone = phoneRaw.replace(/[^0-9]/g,'').slice(-4);
+  const csvDate  = dateRaw.match(/^\d{2}-/) ? '20'+dateRaw : dateRaw;
+  let nameMatch = false, phoneMatch = false, dateMatch = false;
   courses.forEach(c => {
-    c.students.filter(s => s.status !== '종료').forEach(s => {
-      const key = makeMatchKey(s.name, s.phone, s.openDate, c.name);
-      if (!lmsKeyMap[key]) lmsKeyMap[key] = [];
-      lmsKeyMap[key].push({ s, course: c.name });
+    c.students.forEach(s => {
+      const sn = s.name.replace(/\*/g,'').trim();
+      const sp = s.phone.replace(/[^0-9]/g,'').slice(-4);
+      if (sn[0]===n[0] && sn[sn.length-1]===n[n.length-1]) nameMatch = true;
+      if (sp === csvPhone) phoneMatch = true;
+      if (s.openDate === csvDate) dateMatch = true;
     });
   });
+  const reasons = [];
+  if (!nameMatch)  reasons.push('이름 불일치');
+  if (!phoneMatch) reasons.push('전화번호 불일치');
+  if (!dateMatch)  reasons.push('개강일 불일치');
+  return reasons.length > 0 ? reasons : ['LMS 미등록'];
+}
 
-  let totalRows = 0, skippedRows = 0;
+// 시트 행 배열을 매핑 처리 (공통 로직)
+function processSheetRows(rows, channel, lmsKeyMap) {
+  const COL_REP=1, COL_NAME=2, COL_PHONE=3, COL_COURSE=4, COL_START=5, COL_END=6;
+  const resultData = [], skippedData = [];
+  let totalRows = 0;
 
-  allRows.forEach(row => {
-    const dateRaw  = String(row[COL_DATE]  ||'').replace(/\./g,'-').trim();
-    const nameRaw  = String(row[COL_NAME]  ||'').trim();
-    const phoneRaw = String(row[COL_PHONE] ||'').trim();
-    const courseRaw= String(row[COL_COURSE]||'').trim();
-    const rep      = String(row[COL_REP]   ||'').trim();
+  rows.slice(1).filter(r => r.some(c => c)).forEach(row => {
+    const rep       = String(row[COL_REP]   ||'').trim();
+    const nameRaw   = String(row[COL_NAME]  ||'').trim();
+    const phoneRaw  = String(row[COL_PHONE] ||'').trim();
+    const courseRaw = String(row[COL_COURSE]||'').trim();
+    const dateRaw   = String(row[COL_START] ||'').replace(/\./g,'-').trim();
+    const endRaw    = String(row[COL_END]   ||'').replace(/\./g,'-').trim();
     if (!rep || !nameRaw) return;
     totalRows++;
 
-    // 종료된 차수인지 확인 (훈련종료일이 오늘보다 이전이면 종료)
-    const endDateRaw = String(row[COL_DATE + 1]||'').replace(/\./g,'-').trim();
-    const endDate = endDateRaw.match(/^\d{2}-/) ? '20' + endDateRaw : endDateRaw;
-    const isClosedDate = endDate && new Date(endDate) < new Date();
-    if (isClosedDate) { skippedRows++; return; }
+    // 종료된 차수 제외
+    const endDate = endRaw.match(/^\d{2}-/) ? '20'+endRaw : endRaw;
+    if (endDate && new Date(endDate) < new Date()) {
+      skippedData.push({ rep, nameRaw, phoneRaw, courseRaw, dateRaw });
+      return;
+    }
 
-    const key = makeMatchKey(nameRaw, phoneRaw, dateRaw, courseRaw);
+    const key  = makeMatchKey(nameRaw, phoneRaw, dateRaw, courseRaw);
     const hits = lmsKeyMap[key] || [];
 
     if (hits.length === 1) {
-      _ssResultData.push({ status:'ok', rep, nameRaw, dateRaw, phoneRaw, courseRaw, matched: hits[0] });
+      hits[0].s.salesRep = rep;
+      if (!hits[0].s.partner) hits[0].s.partner = channel;
+      resultData.push({ status:'ok', rep, nameRaw, phoneRaw, courseRaw, dateRaw, origRow: row, matched: hits[0] });
     } else if (hits.length > 1) {
-      _ssResultData.push({ status:'amb', rep, nameRaw, dateRaw, phoneRaw, courseRaw, candidates: hits });
+      resultData.push({ status:'amb', rep, nameRaw, phoneRaw, courseRaw, dateRaw, origRow: row, candidates: hits });
     } else {
-      // 미매칭 이유 분석
-      const n = nameRaw.replace(/\*/g,'').trim();
-      const csvNameFirst = n[0], csvNameLast = n[n.length-1];
-      const csvPhone = phoneRaw.replace(/[^0-9]/g,'').slice(-4);
-      const csvDate  = dateRaw.match(/^\d{2}-/) ? '20'+dateRaw : dateRaw;
-
-      let nameMatch = false, phoneMatch = false, dateMatch = false;
-      courses.forEach(c => {
-        c.students.forEach(s => {
-          const sn = s.name.replace(/\*/g,'').trim();
-          const sp = s.phone.replace(/[^0-9]/g,'').slice(-4);
-          if (sn[0]===csvNameFirst && sn[sn.length-1]===csvNameLast) nameMatch = true;
-          if (sp === csvPhone) phoneMatch = true;
-          if (s.openDate === csvDate) dateMatch = true;
-        });
-      });
-
-      const reasons = [];
-      if (!nameMatch)  reasons.push('이름 불일치');
-      if (!phoneMatch) reasons.push('전화번호 불일치');
-      if (!dateMatch)  reasons.push('개강일 불일치');
-      if (reasons.length === 0) reasons.push('LMS 미등록');
-
-      _ssResultData.push({ status:'none', rep, nameRaw, dateRaw, phoneRaw, courseRaw, reasons });
+      resultData.push({ status:'none', rep, nameRaw, phoneRaw, courseRaw, dateRaw, origRow: row,
+        reasons: analyzeFailReason(nameRaw, phoneRaw, dateRaw) });
     }
   });
 
-  const ok   = _ssResultData.filter(r => r.status==='ok').length;
-  const amb  = _ssResultData.filter(r => r.status==='amb').length;
-  const none = _ssResultData.filter(r => r.status==='none').length;
-  const tried = ok + amb + none;
+  return { resultData, skippedData, totalRows };
+}
 
-  // 결과 화면 전환
+// 결과 화면으로 전환
+function showResultStep(channel, totalRows, resultData, skippedData) {
+  window._ssResultData  = resultData;
+  window._ssSkippedData = skippedData;
+
+  const ok   = resultData.filter(r => r.status==='ok').length;
+  const none = resultData.filter(r => r.status==='none').length;
+  const amb  = resultData.filter(r => r.status==='amb').length;
+
   document.getElementById('ssStepSetup').style.display = 'none';
   document.getElementById('ssStepResult').style.display = 'flex';
   document.getElementById('ssModalTitle').textContent = `연동 결과 · ${channel}`;
   document.getElementById('ssModalSub').textContent = `총 ${totalRows}건 처리`;
   document.getElementById('ssConnectBtn').style.display = 'none';
-  document.getElementById('ssSaveBtn').style.display = ok > 0 ? 'inline-flex' : 'none';
+  document.getElementById('ssDownloadBtn').style.display = 'inline-flex';
   document.getElementById('ssBackBtn').style.display = 'inline-flex';
 
-  // 요약 카드 업데이트
-  document.getElementById('ssResTotal').textContent    = totalRows;
-  document.getElementById('ssResSkipped').textContent  = skippedRows;
-  document.getElementById('ssResTried').textContent    = tried;
-  document.getElementById('ssResMatched').textContent  = ok;
-  
-  document.getElementById('ssResUnmatched').textContent= none;
+  document.getElementById('ssResTotal').textContent     = totalRows;
+  document.getElementById('ssResSkipped').textContent   = skippedData.length;
+  document.getElementById('ssResTried').textContent     = ok + none + amb;
+  document.getElementById('ssResMatched').textContent   = ok;
+  document.getElementById('ssResUnmatched').textContent = none;
 
-  showResTab('all');
+  _ssCurrentFilter = 'all';
+  filterResTable('all');
 }
 
+// 모달에서 매핑 시작 (URL 또는 CSV)
+async function runSalesSheetMatch() {
+  const channel = document.getElementById('ssChannelSelect').value;
+  if (!channel) {
+    alert('영업채널을 선택해주세요!');
+    document.getElementById('ssChannelSelect').focus();
+    return;
+  }
+
+  // URL 입력된 경우 시트 먼저 불러오기
+  const urlVal = document.getElementById('ssSheetUrlInput').value.trim();
+  if (!window._ssSheetData && urlVal) {
+    const match = urlVal.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+    if (!match) { alert('올바른 구글 시트 URL이 아니에요.'); return; }
+    const btn = document.getElementById('ssConnectBtn');
+    btn.textContent = '불러오는 중...';
+    btn.disabled = true;
+    try {
+      const rows = await fetchGoogleSheet(match[1]);
+      if (!rows || rows.length <= 1) {
+        document.getElementById('sheetGuideModal').classList.add('open');
+        btn.textContent = '매핑 시작';
+        btn.disabled = false;
+        return;
+      }
+      window._ssSheetData = rows;
+      saveSheetUrl(channel, urlVal);
+    } catch(e) {
+      document.getElementById('sheetGuideModal').classList.add('open');
+      btn.textContent = '매핑 시작';
+      btn.disabled = false;
+      return;
+    }
+    btn.textContent = '매핑 시작';
+    btn.disabled = false;
+  }
+
+  if (!window._ssSheetData) {
+    alert('구글 시트 URL을 입력하거나 CSV 파일을 업로드해주세요!');
+    return;
+  }
+
+  const lmsKeyMap = buildLmsKeyMap();
+  const { resultData, skippedData, totalRows } = processSheetRows(window._ssSheetData, channel, lmsKeyMap);
+  renderPartners();
+  showResultStep(channel, totalRows, resultData, skippedData);
+}
+
+// 상단 버튼 자동 연동 (코드에 하드코딩된 시트 URL 사용)
+async function runAutoSalesSheetMatch() {
+  const sheets = await fetchAllSalesSheets();
+  if (sheets.length === 0) {
+    alert('구글 시트 데이터를 불러오지 못했어요.');
+    return;
+  }
+
+  const lmsKeyMap = buildLmsKeyMap();
+  let allResult = [], allSkipped = [], allTotal = 0;
+  const channelNames = sheets.map(s => s.channel).join(', ');
+
+  sheets.forEach(({ channel, rows }) => {
+    const { resultData, skippedData, totalRows } = processSheetRows(rows, channel, lmsKeyMap);
+    allResult   = allResult.concat(resultData);
+    allSkipped  = allSkipped.concat(skippedData);
+    allTotal   += totalRows;
+  });
+
+  renderPartners();
+
+  // 채널 선택 셀렉트 업데이트 (결과 화면에서 채널명 표시용)
+  const sel = document.getElementById('ssChannelSelect');
+  sel.innerHTML = `<option value="${channelNames}">${channelNames}</option>`;
+  sel.value = channelNames;
+
+  document.getElementById('ssStepSetup').style.display = 'none';
+  showResultStep(channelNames, allTotal, allResult, allSkipped);
+  document.getElementById('salesSheetModal').classList.add('open');
+}
+
+// 카드 클릭 필터링
 let _ssCurrentFilter = 'all';
-let _ssSkippedData = []; // 종료 차수 제외 데이터
+let _ssResultData    = [];
+let _ssSkippedData   = [];
 
 function filterResTable(filter) {
   _ssCurrentFilter = filter;
 
-  // 카드 선택 스타일
-  const cardColors = {
-    'all': 'var(--gray-400)', 'skipped': '#B54708',
-    'tried': 'var(--blue)', 'ok': '#027A48', 'none': '#B42318'
-  };
+  const cardColors = { all:'var(--gray-400)', skipped:'#B54708', tried:'var(--blue)', ok:'#027A48', none:'#B42318' };
   ['all','skipped','tried','ok','none'].forEach(f => {
     const card = document.getElementById('ssCard-' + f);
     if (!card) return;
     card.style.borderColor = f === filter ? cardColors[f] : 'transparent';
-    card.style.boxShadow = f === filter ? `0 0 0 2px ${cardColors[f]}30` : 'none';
+    card.style.boxShadow   = f === filter ? `0 0 0 2px ${cardColors[f]}30` : 'none';
   });
 
   let filtered;
-  if (filter === 'all') filtered = _ssResultData;
+  if      (filter === 'all')     filtered = _ssResultData;
   else if (filter === 'skipped') filtered = _ssSkippedData;
-  else if (filter === 'tried') filtered = _ssResultData.filter(r => r.status === 'ok' || r.status === 'none' || r.status === 'amb');
-  else filtered = _ssResultData.filter(r => r.status === filter);
+  else if (filter === 'tried')   filtered = _ssResultData.filter(r => ['ok','none','amb'].includes(r.status));
+  else                           filtered = _ssResultData.filter(r => r.status === filter);
 
   const rows = filtered.map((r, i) => {
     const isSkipped = filter === 'skipped';
-    const statusBadge = isSkipped
+    const badge = isSkipped
       ? `<span class="tag t-done">종료 제외</span>`
-      : r.status==='ok'
+      : r.status === 'ok'
         ? `<span class="tag t-y">매핑 성공</span>`
         : `<span class="tag t-n">매핑 실패</span>`;
-    const matchInfo = isSkipped
+    const info = isSkipped
       ? `<span style="font-size:11px;color:var(--gray-400)">종료된 차수</span>`
-      : r.status==='ok'
+      : r.status === 'ok'
         ? `<span style="color:var(--gray-700)">${r.matched.s.name}</span> <span style="color:var(--gray-400);font-size:10px">${r.matched.course}</span>`
-        : `<span style="font-size:11px">${(r.reasons||['미확인']).map(reason => `<span style="background:#FEE2E2;color:#B42318;padding:1px 6px;border-radius:4px;margin-right:3px">${reason}</span>`).join('')}</span>`;
+        : (r.reasons||['미확인']).map(rs => `<span style="background:#FEE2E2;color:#B42318;padding:1px 6px;border-radius:4px;margin-right:3px;font-size:11px">${rs}</span>`).join('');
     return `<tr>
       <td style="text-align:center">${i+1}</td>
-      <td>${statusBadge}</td>
+      <td>${badge}</td>
       <td style="font-weight:500">${r.rep||'-'}</td>
       <td>${r.nameRaw||'-'}</td>
       <td style="color:var(--gray-400)">${r.courseRaw||'-'}</td>
       <td style="color:var(--gray-400)">${r.dateRaw||'-'}</td>
       <td style="font-family:monospace;font-size:11px">${r.phoneRaw ? r.phoneRaw.replace(/(\d{3})(\d+)(\d{4})/,'$1-****-$3') : '-'}</td>
-      <td>${matchInfo}</td>
+      <td>${info}</td>
     </tr>`;
   }).join('');
 
@@ -4042,50 +3933,37 @@ function filterResTable(filter) {
     </tr></thead>
     <tbody>${rows || '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--gray-400)">해당 건이 없습니다.</td></tr>'}</tbody>`;
 
-  // 다운로드 버튼 건수 업데이트
   document.getElementById('ssDownloadCount').textContent = filtered.length;
 }
 
 // 현재 보이는 테이블 기준 엑셀 다운로드
 function ssDownloadCurrentView() {
-  const channel = document.getElementById('ssChannelSelect').value;
-  let filtered;
-  if (_ssCurrentFilter === 'all') filtered = _ssResultData;
-  else if (_ssCurrentFilter === 'skipped') filtered = _ssSkippedData;
-  else if (_ssCurrentFilter === 'tried') filtered = _ssResultData.filter(r => r.status === 'ok' || r.status === 'none' || r.status === 'amb');
-  else filtered = _ssResultData.filter(r => r.status === _ssCurrentFilter);
+  const channel = document.getElementById('ssChannelSelect').value || '채널';
 
-  // 원본 시트 컬럼 형식으로 다운로드
+  let filtered;
+  if      (_ssCurrentFilter === 'all')     filtered = _ssResultData;
+  else if (_ssCurrentFilter === 'skipped') filtered = _ssSkippedData;
+  else if (_ssCurrentFilter === 'tried')   filtered = _ssResultData.filter(r => ['ok','none','amb'].includes(r.status));
+  else                                     filtered = _ssResultData.filter(r => r.status === _ssCurrentFilter);
+
   const headers = ['자동 NO.','팀명','학생이름','전화번호','과정명','훈련시작','훈련종료','자부담금 결제 확인','','수료 여부','정산차수','비고'];
 
   const rows = filtered.map((r, i) => {
-    const isSkipped = _ssCurrentFilter === 'skipped';
-    // 원본 시트에서 해당 행 찾기
-    const origRows = window._ssSheetData || [];
-    const origRow = origRows.slice(1).find(row => {
-      const n = String(row[2]||'').trim();
-      const d = String(row[5]||'').replace(/\./g,'-').trim();
-      return n === r.nameRaw && d === r.dateRaw;
-    }) || [];
-
-    const no         = i + 1;
-    const teamName   = r.rep || String(origRow[1]||'');
-    const name       = r.nameRaw || String(origRow[2]||'');
-    const phone      = r.phoneRaw || String(origRow[3]||'');
-    const courseName = r.courseRaw || String(origRow[4]||'');
-    const startDate  = r.dateRaw || String(origRow[5]||'');
-    const endDate    = String(origRow[6]||'');
-    const payment    = String(origRow[7]||'');
-    const col9       = '';
-    const completed  = r.status==='ok' ? (r.matched.s.completed ? '수료' : '미수료') : '';
-    const settlement = '';
-    // 비고(L열): 결과값
-    const note = isSkipped ? '종료 차수 제외'
-      : r.status==='ok' ? '매핑 성공'
+    const orig    = r.origRow || [];
+    const no      = i + 1;
+    const team    = r.rep            || String(orig[1]||'');
+    const name    = r.nameRaw        || String(orig[2]||'');
+    const phone   = r.phoneRaw       || String(orig[3]||'');
+    const course  = r.courseRaw      || String(orig[4]||'');
+    const start   = r.dateRaw        || String(orig[5]||'');
+    const end     = String(orig[6]||'');
+    const payment = String(orig[7]||'');
+    const completed = r.status==='ok' ? (r.matched.s.completed ? '수료' : '미수료') : '';
+    const note = _ssCurrentFilter === 'skipped' ? '종료 차수 제외'
+      : r.status==='ok'  ? '매핑 성공'
       : r.status==='amb' ? '수동 확인 필요'
       : (r.reasons||['미확인']).join(', ');
-
-    return [no, teamName, name, phone, courseName, startDate, endDate, payment, col9, completed, settlement, note];
+    return [no, team, name, phone, course, start, end, payment, '', completed, '', note];
   });
 
   const wb = XLSX.utils.book_new();
@@ -4095,140 +3973,8 @@ function ssDownloadCurrentView() {
   XLSX.writeFile(wb, `매핑결과_${channel}_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
-// 구 showResTab 호환
-function showResTab(tab) { filterResTable(tab === 'all' ? 'all' : tab); }
-
-function ssGoBack() {
-  document.getElementById('ssStepSetup').style.display = 'flex';
-  document.getElementById('ssStepResult').style.display = 'none';
-  document.getElementById('ssModalTitle').textContent = '영업시트 연동';
-  document.getElementById('ssModalSub').textContent = '채널을 선택하고 시트를 연동하세요';
-  document.getElementById('ssConnectBtn').style.display = 'inline-flex';
-  
-  document.getElementById('ssDownloadBtn').style.display = 'none';
-  document.getElementById('ssBackBtn').style.display = 'none';
-}
-
-function ssDownloadExcel() {
-  const channel = document.getElementById('ssChannelSelect').value;
-
-  // 원본 시트 컬럼 순서 그대로 + 수료여부/정산차수/비고 채워서
-  const headers = ['NO','팀명','학생이름','전화번호','과정명','훈련시작','훈련종료','자부담금 결제 확인','수료여부','정산차수','비고'];
-
-  const rows = _ssResultData.map((r, i) => {
-    const s = r.status === 'ok' ? r.matched.s : null;
-    const course = s ? courses.find(c => c.students.includes(s)) : null;
-
-    // 원본 시트에서 가져온 값들
-    const sheetCols = window._ssSheetData[0] || [];
-    const getCol = label => sheetCols.indexOf(label);
-    const rawRow = window._ssSheetData.slice(1)[i] || [];
-
-    const no         = i + 1;
-    const teamName   = r.rep;
-    const name       = r.nameRaw;
-    const phone      = r.phoneRaw ? r.phoneRaw.replace(/(\d{3})(\d{3,4})(\d{4})/, '$1-$2-$3') : '';
-    const courseName = s ? (course?.name || '') : (rawRow[getCol('과정명')] || '');
-    const startDate  = s ? (s.openDate || '') : r.dateRaw;
-    const endDate    = s ? (s.endDate || '') : (rawRow[getCol('훈련종료')] || '');
-    const payment    = rawRow[getCol('자부담금 결제 확인')] || '';
-
-    // LMS에서 채워주는 값
-    const completed  = s ? (s.completed ? '수료' : '미수료') : '';
-    const settlement = s ? (s.settlementRound || '') : '';
-    const note       = r.status === 'amb' ? '수동확인필요' : r.status === 'none' ? '미매칭' : '';
-
-    return [no, teamName, name, phone, courseName, startDate, endDate, payment, completed, settlement, note];
-  });
-
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-
-  // 컬럼 너비 설정
-  ws['!cols'] = [
-    {wch:6},{wch:14},{wch:12},{wch:16},{wch:30},{wch:12},{wch:12},{wch:14},{wch:10},{wch:10},{wch:16}
-  ];
-
-  // 수료여부 색상 (확정만)
-  _ssResultData.forEach((r, i) => {
-    if (r.status === 'ok') {
-      const cellRef = XLSX.utils.encode_cell({ r: i+1, c: 8 });
-      if (!ws[cellRef]) return;
-      ws[cellRef].s = {
-        font: { color: { rgb: r.matched?.s?.completed ? '027A48' : 'B42318' } }
-      };
-    }
-  });
-
-  XLSX.utils.book_append_sheet(wb, ws, '영업시트');
-  XLSX.writeFile(wb, `영업시트_${channel}_${new Date().toISOString().slice(0,10)}.xlsx`);
-}
-
-
-function ssSaveMatched() {
-  const channel = document.getElementById('ssChannelSelect').value;
-  let count = 0;
-  _ssResultData.filter(r => r.status==='ok').forEach(r => {
-    r.matched.s.salesRep = r.rep;
-    if (!r.matched.s.partner) r.matched.s.partner = channel;
-    count++;
-  });
-  renderPartners();
-
-  // 구글 시트에 저장
-  const btn = document.getElementById('ssSaveBtn');
-  btn.textContent = '저장 중...';
-  btn.disabled = true;
-
-  saveMappingToSheet(channel, _ssResultData).then(saved => {
-    if (saved >= 0) {
-      console.log(`✅ 구글 시트에 ${saved}건 저장됨`);
-    } else {
-      console.warn('⚠️ 구글 시트 저장 실패 - 로컬에만 저장됨');
-    }
-    btn.textContent = `결과 다운로드 (${_ssResultData.length}건)`;
-    btn.disabled = false;
-    btn.onclick = ssDownloadResult;
-  });
-}
-
-function ssDownloadResult() {
-  const originalHeaders = window._ssSheetData[0] || [];
-  const headers = [...originalHeaders, '비고'];
-
-  const dataRows = window._ssSheetData.slice(1).map((row) => {
-    const nameRaw  = String(row[2]||'').trim();
-    const phoneRaw = String(row[3]||'').trim();
-    const dateRaw  = String(row[5]||'').replace(/\./g,'-').trim();
-    const courseRaw= String(row[4]||'').trim();
-
-    // 종료 차수 → 제외
-    const endDateRaw = String(row[6]||'').replace(/\./g,'-').trim();
-    const endDate = endDateRaw.match(/^\d{2}-/) ? '20'+endDateRaw : endDateRaw;
-    if (endDate && new Date(endDate) < new Date()) return null;
-
-    const matched = _ssResultData.find(r =>
-      r.nameRaw === nameRaw && r.phoneRaw === phoneRaw && r.dateRaw === dateRaw && r.courseRaw === courseRaw
-    );
-
-    // 매핑 완료 → 제외
-    if (!matched || matched.status === 'ok') return null;
-
-    // 미매칭만 포함
-    const note = (matched.reasons||['미확인']).join(', ');
-    return [...row, note];
-  }).filter(Boolean);
-
-  if (dataRows.length === 0) {
-    alert('다운로드할 미매칭 건이 없습니다!');
-    return;
-  }
-
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
-  XLSX.utils.book_append_sheet(wb, ws, '미매칭결과');
-  XLSX.writeFile(wb, `업로드결과_${new Date().toISOString().slice(0,10)}.xlsx`);
-}
+// 구 함수 호환 (혹시 다른 곳에서 호출할 경우 대비)
+function showResTab(tab) { filterResTable(tab); }
 
 
 function copyServiceEmail() {
