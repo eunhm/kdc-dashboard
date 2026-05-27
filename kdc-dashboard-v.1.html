@@ -1917,8 +1917,8 @@ async function saveMappingToSheet(channel, results) {
     const token = await getAccessToken();
     const now = new Date().toLocaleString('ko-KR');
 
-    // 기존 데이터 가져오기 (중복 방지)
-    const existing = await fetchGoogleSheet(GOOGLE_CONFIG.resultSheetId);
+    // 기존 데이터 가져오기 (중복 방지) - 매핑결과 탭에서
+    const existing = await fetchSheetByName('매핑결과');
     const existingKeys = new Set((existing||[]).slice(1).map(r => `${r[0]}_${r[1]}_${r[2]}_${r[3]}`));
 
     // 새로 추가할 행
@@ -1946,7 +1946,7 @@ async function saveMappingToSheet(channel, results) {
     }
 
     const res = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_CONFIG.resultSheetId}/values/A1:append?valueInputOption=RAW`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_CONFIG.resultSheetId}/values/%EB%A7%A4%ED%95%91%EA%B2%B0%EA%B3%BC!A1:append?valueInputOption=RAW`,
       {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -2052,13 +2052,13 @@ async function saveSheetByName(sheetName, rows) {
 async function saveBookmarksToSheet() {
   const rows = [['id', '북마크명', '컬럼목록']];
   statsBookmarks.forEach(b => rows.push([b.id, b.title, b.cols.join(',')]));
-  const ok = await saveSheetByName('5. 통계북마크', rows);
+  const ok = await saveSheetByName('통계북마크관리', rows);
   if (ok) console.log('✅ 북마크 구글 시트 저장 완료');
   return ok;
 }
 
 async function loadBookmarksFromSheet() {
-  const rows = await fetchSheetByName('5. 통계북마크');
+  const rows = await fetchSheetByName('통계북마크관리');
   if (!rows || rows.length <= 1) return false;
   const loaded = rows.slice(1).filter(r => r[0] && r[1] && r[2]).map(r => ({
     id:    Number(r[0]),
