@@ -3662,11 +3662,13 @@ function updateSsConnectBtn() {
 
 // CSV 파일 업로드 처리
 function makeMatchKey(name, phone, date, courseName) {
-  const n = (name||'').replace(/\*/g,'').replace(/\s/g,'');
-  const p = (phone||'').replace(/[^0-9]/g,'').slice(-4);
-  const d = date && date.match(/^\d{2}-/) ? '20'+date : (date||'');
-  const c = (courseName||'').replace(/\s/g,'').slice(0,10);
-  return `${n}|${p}|${d}|${c}`;
+  const n    = (name||'').replace(/\*/g,'').trim();
+  const nameKey   = n.length >= 2 ? n[0] + n[n.length-1] : n;
+  const phoneKey  = (phone||'').replace(/[^0-9]/g,'').slice(-4);
+  const dateOrig  = String(date||'').replace(/\./g,'-').trim();
+  const dateKey   = dateOrig.match(/^\d{2}-/) ? '20' + dateOrig : dateOrig;
+  const courseKey = (courseName||'').toLowerCase().replace(/\s/g,'');
+  return `${nameKey}_${phoneKey}_${dateKey}_${courseKey}`;
 }
 
 function cancelSalesSheetFile() {
@@ -3865,7 +3867,7 @@ async function runSalesSheetMatch() {
 // 상단 버튼 자동 연동 (코드에 하드코딩된 시트 URL 사용)
 async function runAutoSalesSheetMatch() {
   const sheets = await fetchAllSalesSheets();
-  if (sheets.length === 0) {
+  if (!sheets || sheets.length === 0) {
     alert('구글 시트 데이터를 불러오지 못했어요.');
     return;
   }
