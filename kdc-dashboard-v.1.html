@@ -692,7 +692,7 @@ body{font-family:var(--font);background:#fff;color:var(--gray-900);line-height:1
     </div>
 
     <!-- STEP 2: 매핑 결과 화면 -->
-    <div id="ssStepResult" style="display:none;flex:1;overflow:hidden;flex-direction:column">
+    <div id="ssStepResult" style="display:none;flex:1;overflow-y:auto;flex-direction:column">
       <!-- 요약 카드 (클릭 가능) -->
       <div style="padding:16px 24px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
         <div onclick="filterResTable('all')" id="ssCard-all" style="background:var(--gray-50);border-radius:10px;padding:12px 14px;text-align:center;cursor:pointer;border:2px solid transparent;transition:all .15s" onmouseover="this.style.borderColor='var(--gray-400)'" onmouseout="if(_ssCurrentFilter!=='all')this.style.borderColor='transparent'">
