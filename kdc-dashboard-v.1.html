@@ -2194,7 +2194,7 @@ function transformApiData(rawData, year) {
       completed:   row['FNSH_YN']      === 'Y',
       closed:      row['CLSNG_YN']     === 'Y',
       processed:   row['CLSNG_YN']     === 'Y',
-      paid:        row['PAYMENT']       === 'Y',
+      paid:        row['PAYMENT_YN']    === 'Y',
       progress:    row['PRGRT']        || 0,
       score:       row['TSCR']         || 0,
       tuition:     row['EDUCST']       || 0,
