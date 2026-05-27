@@ -618,9 +618,29 @@ body{font-family:var(--font);background:#fff;color:var(--gray-900);line-height:1
         </select>
       </div>
 
+      <!-- 구글 시트 URL 연동 -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--gray-500);margin-bottom:8px;letter-spacing:.3px">② 구글 시트 URL 연동 <span style="font-size:10px;color:var(--gray-400);font-weight:400">(선택)</span></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input id="ssSheetUrlInput" type="text" placeholder="https://docs.google.com/spreadsheets/d/..."
+            style="flex:1;border:1px solid var(--border);border-radius:7px;padding:8px 12px;font-family:var(--font);font-size:12px;outline:none;color:var(--gray-700)"
+            onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'">
+          <button onclick="runSheetUrlMatch()" style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#fff;background:var(--blue);border:none;border-radius:7px;padding:8px 14px;cursor:pointer;font-family:var(--font);white-space:nowrap">
+            연동
+          </button>
+        </div>
+        <div style="margin-top:5px;font-size:10px;color:var(--gray-400)">구글 시트 URL을 입력하면 자동으로 데이터를 가져와요</div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 0">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <span style="font-size:10px;color:var(--gray-400)">또는</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+
       <!-- 파일 업로드 -->
       <div>
-        <div style="font-size:11px;font-weight:600;color:var(--gray-500);margin-bottom:8px;letter-spacing:.3px">② CSV 파일 업로드</div>
+        <div style="font-size:11px;font-weight:600;color:var(--gray-500);margin-bottom:8px;letter-spacing:.3px">③ CSV 파일 업로드</div>
         <div style="display:flex;align-items:center;gap:8px">
           <label id="ssFileLabel" style="flex:1;display:flex;align-items:center;gap:8px;border:1.5px dashed var(--gray-300);border-radius:8px;padding:12px 14px;cursor:pointer;transition:border-color .15s,background .15s" onmouseover="this.style.borderColor='var(--blue)';this.style.background='var(--blue-light)'" onmouseout="this.style.borderColor='var(--gray-300)';this.style.background=''">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -3550,6 +3570,7 @@ function openSalesSheetModal() {
   sel.innerHTML = '<option value="">채널을 선택하세요</option>' +
     getAllChannels().map(ch => `<option value="${ch}">${ch}</option>`).join('');
   document.getElementById('ssFileName').textContent = '파일을 선택하세요 (.csv)';
+  document.getElementById('ssSheetUrlInput').value = '';
   document.getElementById('ssLoadResult').style.display = 'none';
   document.getElementById('ssConnectBtn').disabled = true;
   document.getElementById('ssModalTitle').textContent = '영업데이터 업로드';
@@ -3558,7 +3579,16 @@ function openSalesSheetModal() {
   document.getElementById('salesSheetModal').classList.add('open');
 }
 
-function onChannelSelect() {}
+function onChannelSelect() {
+  const channel = document.getElementById('ssChannelSelect').value;
+  if (!channel) return;
+  const saved = JSON.parse(localStorage.getItem('kdc_sheet_urls') || '{}');
+  if (saved[channel]) {
+    document.getElementById('ssSheetUrlInput').value = saved[channel];
+  } else {
+    document.getElementById('ssSheetUrlInput').value = '';
+  }
+}
 function checkSsReady() {}
 function clearSavedUrl() {}
 function switchSsTab() {}
@@ -3635,7 +3665,8 @@ async function runAutoSalesSheetMatch() {
     });
   });
 
-  let totalMatched = 0, totalUnmatched = 0;
+  _ssResultData = [];
+  let totalRows = 0, skippedRows = 0;
 
   sheets.forEach(({ channel, rows }) => {
     const dataRows = rows.slice(1).filter(r => r.some(c => c));
@@ -3646,6 +3677,11 @@ async function runAutoSalesSheetMatch() {
       const courseRaw= String(row[COL_COURSE]||'').trim();
       const rep      = String(row[COL_REP]   ||'').trim();
       if (!rep || !nameRaw) return;
+      totalRows++;
+
+      const endDateRaw = String(row[COL_DATE + 1]||'').replace(/\./g,'-').trim();
+      const endDate = endDateRaw.match(/^\d{2}-/) ? '20' + endDateRaw : endDateRaw;
+      if (endDate && new Date(endDate) < new Date()) { skippedRows++; return; }
 
       const key = makeMatchKey(nameRaw, phoneRaw, dateRaw, courseRaw);
       const hits = lmsKeyMap[key] || [];
@@ -3653,15 +3689,107 @@ async function runAutoSalesSheetMatch() {
       if (hits.length === 1) {
         hits[0].s.salesRep = rep;
         if (!hits[0].s.partner) hits[0].s.partner = channel;
-        totalMatched++;
+        _ssResultData.push({ status:'ok', rep, nameRaw, dateRaw, phoneRaw, courseRaw, matched: hits[0] });
+      } else if (hits.length > 1) {
+        _ssResultData.push({ status:'amb', rep, nameRaw, dateRaw, phoneRaw, courseRaw, candidates: hits });
       } else {
-        totalUnmatched++;
+        const n = nameRaw.replace(/\*/g,'').trim();
+        const csvNameFirst = n[0], csvNameLast = n[n.length-1];
+        const csvPhone = phoneRaw.replace(/[^0-9]/g,'').slice(-4);
+        const csvDate  = dateRaw.match(/^\d{2}-/) ? '20'+dateRaw : dateRaw;
+        let nameMatch = false, phoneMatch = false, dateMatch = false;
+        courses.forEach(c => {
+          c.students.forEach(s => {
+            const sn = s.name.replace(/\*/g,'').trim();
+            const sp = s.phone.replace(/[^0-9]/g,'').slice(-4);
+            if (sn[0]===csvNameFirst && sn[sn.length-1]===csvNameLast) nameMatch = true;
+            if (sp === csvPhone) phoneMatch = true;
+            if (s.openDate === csvDate) dateMatch = true;
+          });
+        });
+        const reasons = [];
+        if (!nameMatch)  reasons.push('이름 불일치');
+        if (!phoneMatch) reasons.push('전화번호 불일치');
+        if (!dateMatch)  reasons.push('개강일 불일치');
+        if (reasons.length === 0) reasons.push('LMS 미등록');
+        _ssResultData.push({ status:'none', rep, nameRaw, dateRaw, phoneRaw, courseRaw, reasons });
       }
     });
   });
 
   renderPartners();
-  alert(`✅ 자동 매칭 완료!\n확정: ${totalMatched}건 / 미매칭: ${totalUnmatched}건`);
+
+  const ok   = _ssResultData.filter(r => r.status==='ok').length;
+  const none = _ssResultData.filter(r => r.status==='none').length;
+  const channelNames = sheets.map(s => s.channel).join(', ');
+
+  // 모달로 결과 표시
+  document.getElementById('ssStepSetup').style.display = 'none';
+  document.getElementById('ssStepResult').style.display = 'flex';
+  document.getElementById('ssModalTitle').textContent = `연동 결과 · ${channelNames}`;
+  document.getElementById('ssModalSub').textContent = `총 ${totalRows}건 처리`;
+  document.getElementById('ssConnectBtn').style.display = 'none';
+  document.getElementById('ssSaveBtn').style.display = 'none';
+  document.getElementById('ssBackBtn').style.display = 'inline-flex';
+
+  document.getElementById('ssResTotal').textContent    = totalRows;
+  document.getElementById('ssResSkipped').textContent  = skippedRows;
+  document.getElementById('ssResTried').textContent    = ok + none;
+  document.getElementById('ssResMatched').textContent  = ok;
+  document.getElementById('ssResUnmatched').textContent= none;
+
+  showResTab('all');
+  document.getElementById('salesSheetModal').classList.add('open');
+}
+
+async function runSheetUrlMatch() {
+  const channel = document.getElementById('ssChannelSelect').value;
+  if (!channel) {
+    alert('영업채널을 먼저 선택해주세요!');
+    document.getElementById('ssChannelSelect').focus();
+    return;
+  }
+  const urlInput = document.getElementById('ssSheetUrlInput').value.trim();
+  if (!urlInput) { alert('구글 시트 URL을 입력해주세요!'); return; }
+
+  // URL에서 시트 ID 추출
+  const match = urlInput.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (!match) { alert('올바른 구글 시트 URL이 아니에요.'); return; }
+  const sheetId = match[1];
+
+  const btn = document.getElementById('ssSheetUrlInput').nextElementSibling;
+  btn.textContent = '불러오는 중...';
+  btn.disabled = true;
+
+  try {
+    const rows = await fetchGoogleSheet(sheetId);
+    if (!rows || rows.length <= 1) {
+      alert('시트에서 데이터를 가져오지 못했어요.\n시트 공유 설정을 확인해주세요.');
+      btn.textContent = '연동';
+      btn.disabled = false;
+      return;
+    }
+
+    // CSV처럼 처리
+    window._ssSheetData = rows;
+    document.getElementById('ssFileName').textContent = `구글 시트 연동됨 · ${rows.length - 1}행`;
+    document.getElementById('ssLoadResult').style.display = 'block';
+    document.getElementById('ssLoadResult').style.background = 'var(--success-light)';
+    document.getElementById('ssLoadResult').style.color = '#027A48';
+    document.getElementById('ssLoadResult').innerHTML = `✅ 구글 시트 연동 성공 · 총 <strong>${rows.length - 1}행</strong> 불러옴`;
+    document.getElementById('ssConnectBtn').disabled = false;
+
+    // URL을 채널별로 저장
+    const saved = JSON.parse(localStorage.getItem('kdc_sheet_urls') || '{}');
+    saved[channel] = urlInput;
+    localStorage.setItem('kdc_sheet_urls', JSON.stringify(saved));
+
+  } catch(e) {
+    alert('시트 불러오기 실패: ' + e.message);
+  }
+
+  btn.textContent = '연동';
+  btn.disabled = false;
 }
 
 function runSalesSheetMatch() {
