@@ -595,6 +595,39 @@ body{font-family:var(--font);background:#fff;color:var(--gray-900);line-height:1
   </div>
 </div>
 
+<!-- 구글 시트 공유 안내 모달 -->
+<div class="sm-overlay" id="sheetGuideModal">
+  <div class="sm-modal" style="width:460px">
+    <div class="sm-head">
+      <span class="sm-title">구글 시트 접근 권한 필요</span>
+      <button class="modal-close" onclick="closeModal('sheetGuideModal')">×</button>
+    </div>
+    <div style="padding:4px 0">
+      <div style="display:flex;align-items:center;gap:10px;padding:14px;background:var(--danger-light);border-radius:8px;margin-bottom:16px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span style="font-size:12px;color:#B42318;font-weight:500">시트에 접근할 수 없어요. 아래 이메일에 공유 권한을 부여해주세요.</span>
+      </div>
+      <div style="font-size:12px;color:var(--gray-600);line-height:2;margin-bottom:16px">
+        <div style="margin-bottom:4px;font-weight:600;color:var(--gray-700)">공유 방법</div>
+        <div>① 구글 시트 우측 상단 <strong>공유</strong> 버튼 클릭</div>
+        <div>② 아래 이메일 주소 입력 후 <strong>뷰어</strong> 권한으로 추가</div>
+        <div>③ 저장 후 다시 연동 시도</div>
+      </div>
+      <div style="font-size:11px;font-weight:600;color:var(--gray-500);margin-bottom:6px">서비스 계정 이메일</div>
+      <div style="display:flex;align-items:center;gap:8px;background:var(--gray-50);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
+        <span id="serviceEmailText" style="flex:1;font-size:12px;color:var(--gray-800);font-family:monospace;word-break:break-all">kdc-dashboard@core-silicon-497508-q6.iam.gserviceaccount.com</span>
+        <button onclick="copyServiceEmail()" id="copyEmailBtn" style="flex-shrink:0;display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--blue);border:1px solid var(--blue);border-radius:6px;padding:5px 10px;background:#fff;cursor:pointer;font-family:var(--font);white-space:nowrap;transition:all .15s">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          복사
+        </button>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:20px">
+      <button onclick="closeModal('sheetGuideModal')" class="btn-primary" style="font-size:12px;padding:7px 16px">확인</button>
+    </div>
+  </div>
+</div>
+
 <!-- 영업시트 연동 모달 -->
 <div class="overlay" id="salesSheetModal">
   <div class="modal" style="width:780px;max-height:86vh;display:flex;flex-direction:column">
@@ -609,7 +642,7 @@ body{font-family:var(--font);background:#fff;color:var(--gray-900);line-height:1
     <!-- STEP 1: 설정 화면 -->
     <div id="ssStepSetup" style="padding:20px 24px;display:flex;flex-direction:column;gap:16px;overflow-y:auto">
 
-      <!-- 채널 선택 -->
+      <!-- ① 채널 선택 -->
       <div>
         <div style="font-size:11px;font-weight:600;color:var(--gray-500);margin-bottom:6px;letter-spacing:.3px">① 영업채널 선택</div>
         <select id="ssChannelSelect" onchange="onChannelSelect()" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:8px 12px;font-family:var(--font);font-size:13px;outline:none;color:var(--gray-700)"
@@ -618,81 +651,75 @@ body{font-family:var(--font);background:#fff;color:var(--gray-900);line-height:1
         </select>
       </div>
 
-      <!-- 구글 시트 URL 연동 -->
-      <div>
-        <div style="font-size:11px;font-weight:600;color:var(--gray-500);margin-bottom:8px;letter-spacing:.3px">② 구글 시트 URL 연동 <span style="font-size:10px;color:var(--gray-400);font-weight:400">(선택)</span></div>
-        <div style="display:flex;align-items:center;gap:8px">
+      <!-- ② 데이터 가져오기 (채널 선택 후 표시) -->
+      <div id="ssDataSection" style="display:none;flex-direction:column;gap:12px">
+
+        <!-- 구글 시트 연동 -->
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--gray-500);margin-bottom:8px;letter-spacing:.3px">② 구글 시트 연동</div>
           <input id="ssSheetUrlInput" type="text" placeholder="https://docs.google.com/spreadsheets/d/..."
-            style="flex:1;border:1px solid var(--border);border-radius:7px;padding:8px 12px;font-family:var(--font);font-size:12px;outline:none;color:var(--gray-700)"
+            oninput="onSheetUrlInput()"
+            style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:7px;padding:8px 12px;font-family:var(--font);font-size:12px;outline:none;color:var(--gray-700)"
             onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'">
-          <button onclick="runSheetUrlMatch()" style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#fff;background:var(--blue);border:none;border-radius:7px;padding:8px 14px;cursor:pointer;font-family:var(--font);white-space:nowrap">
-            연동
-          </button>
+          <div style="margin-top:5px;font-size:10px;color:var(--gray-400)">한번 입력하면 채널별로 저장돼요</div>
         </div>
-        <div style="margin-top:5px;font-size:10px;color:var(--gray-400)">구글 시트 URL을 입력하면 자동으로 데이터를 가져와요</div>
-      </div>
 
-      <div style="display:flex;align-items:center;gap:8px;margin:0 0 0">
-        <div style="flex:1;height:1px;background:var(--border)"></div>
-        <span style="font-size:10px;color:var(--gray-400)">또는</span>
-        <div style="flex:1;height:1px;background:var(--border)"></div>
-      </div>
-
-      <!-- 파일 업로드 -->
-      <div>
-        <div style="font-size:11px;font-weight:600;color:var(--gray-500);margin-bottom:8px;letter-spacing:.3px">③ CSV 파일 업로드</div>
+        <!-- 구분선 -->
         <div style="display:flex;align-items:center;gap:8px">
-          <label id="ssFileLabel" style="flex:1;display:flex;align-items:center;gap:8px;border:1.5px dashed var(--gray-300);border-radius:8px;padding:12px 14px;cursor:pointer;transition:border-color .15s,background .15s" onmouseover="this.style.borderColor='var(--blue)';this.style.background='var(--blue-light)'" onmouseout="this.style.borderColor='var(--gray-300)';this.style.background=''">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <span id="ssFileName" style="font-size:12px;color:var(--gray-400)">파일을 선택하세요 (.csv)</span>
-            <input type="file" id="ssFileInput" accept=".csv" style="display:none" onchange="handleSalesSheetFile(this)">
-          </label>
-          <button id="ssCancelFileBtn" onclick="cancelSalesSheetFile()" style="display:none;padding:8px;border:1px solid var(--gray-300);border-radius:8px;background:#fff;cursor:pointer;color:var(--gray-500);font-size:12px" title="파일 취소">✕</button>
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+          <span style="font-size:10px;color:var(--gray-400)">또는 CSV 직접 업로드</span>
+          <div style="flex:1;height:1px;background:var(--border)"></div>
         </div>
-        <div style="margin-top:6px;font-size:10px;color:var(--gray-400);line-height:1.7">
-          구글시트 → <strong>파일 → 다운로드 → CSV</strong> 로 받아서 업로드하세요<br>
-          컬럼 순서: <strong>자동NO. | 팀명 | 학생이름 | 전화번호 | 과정명 | 훈련시작 | 훈련종료 | 자부담금 결제 확인</strong>
-        </div>
-      </div>
 
-      <div id="ssLoadResult" style="display:none;padding:10px 12px;border-radius:8px;font-size:12px"></div>
+        <!-- CSV 파일 업로드 -->
+        <div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <label id="ssFileLabel" style="flex:1;display:flex;align-items:center;gap:8px;border:1.5px dashed var(--gray-300);border-radius:8px;padding:12px 14px;cursor:pointer;transition:border-color .15s,background .15s" onmouseover="this.style.borderColor='var(--blue)';this.style.background='var(--blue-light)'" onmouseout="this.style.borderColor='var(--gray-300)';this.style.background=''">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span id="ssFileName" style="font-size:12px;color:var(--gray-400)">파일을 선택하세요 (.csv)</span>
+              <input type="file" id="ssFileInput" accept=".csv" style="display:none" onchange="handleSalesSheetFile(this)">
+            </label>
+            <button id="ssCancelFileBtn" onclick="cancelSalesSheetFile()" style="display:none;padding:8px;border:1px solid var(--gray-300);border-radius:8px;background:#fff;cursor:pointer;color:var(--gray-500);font-size:12px" title="파일 취소">✕</button>
+          </div>
+          <div style="margin-top:6px;font-size:10px;color:var(--gray-400);line-height:1.7">
+            구글시트 → <strong>파일 → 다운로드 → CSV</strong><br>
+            컬럼 순서: <strong>자동NO. | 팀명 | 학생이름 | 전화번호 | 과정명 | 훈련시작 | 훈련종료 | 자부담금 결제 확인</strong>
+          </div>
+        </div>
+
+        <div id="ssLoadResult" style="display:none;padding:10px 12px;border-radius:8px;font-size:12px"></div>
+      </div>
     </div>
 
-    <!-- STEP 2: 매칭 결과 화면 -->
+    <!-- STEP 2: 매핑 결과 화면 -->
     <div id="ssStepResult" style="display:none;flex:1;overflow:hidden;flex-direction:column">
-      <!-- 요약 카드 -->
+      <!-- 요약 카드 (클릭 가능) -->
       <div style="padding:16px 24px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
-        <div style="background:var(--gray-50);border-radius:10px;padding:12px 14px;text-align:center">
+        <div onclick="filterResTable('all')" id="ssCard-all" style="background:var(--gray-50);border-radius:10px;padding:12px 14px;text-align:center;cursor:pointer;border:2px solid transparent;transition:all .15s" onmouseover="this.style.borderColor='var(--gray-400)'" onmouseout="if(_ssCurrentFilter!=='all')this.style.borderColor='transparent'">
           <div style="font-size:10px;font-weight:600;color:var(--gray-500);margin-bottom:4px">📥 전체 업로드</div>
           <div id="ssResTotal" style="font-size:22px;font-weight:700;color:var(--gray-700)">0</div>
           <div style="font-size:10px;color:var(--gray-400);margin-top:2px">건</div>
         </div>
-        <div style="background:#FFF7ED;border-radius:10px;padding:12px 14px;text-align:center">
+        <div onclick="filterResTable('skipped')" id="ssCard-skipped" style="background:#FFF7ED;border-radius:10px;padding:12px 14px;text-align:center;cursor:pointer;border:2px solid transparent;transition:all .15s" onmouseover="this.style.borderColor='#B54708'" onmouseout="if(_ssCurrentFilter!=='skipped')this.style.borderColor='transparent'">
           <div style="font-size:10px;font-weight:600;color:#B54708;margin-bottom:4px">🚫 종료 차수 제외</div>
           <div id="ssResSkipped" style="font-size:22px;font-weight:700;color:#B54708">0</div>
           <div style="font-size:10px;color:#B54708;margin-top:2px">건</div>
         </div>
-        <div style="background:#EFF4FF;border-radius:10px;padding:12px 14px;text-align:center">
+        <div onclick="filterResTable('tried')" id="ssCard-tried" style="background:#EFF4FF;border-radius:10px;padding:12px 14px;text-align:center;cursor:pointer;border:2px solid transparent;transition:all .15s" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="if(_ssCurrentFilter!=='tried')this.style.borderColor='transparent'">
           <div style="font-size:10px;font-weight:600;color:var(--blue);margin-bottom:4px">🔍 매핑 시도</div>
           <div id="ssResTried" style="font-size:22px;font-weight:700;color:var(--blue)">0</div>
           <div style="font-size:10px;color:var(--blue);margin-top:2px">건</div>
         </div>
-        <div style="background:var(--success-light);border-radius:10px;padding:12px 14px;text-align:center">
+        <div onclick="filterResTable('ok')" id="ssCard-ok" style="background:var(--success-light);border-radius:10px;padding:12px 14px;text-align:center;cursor:pointer;border:2px solid transparent;transition:all .15s" onmouseover="this.style.borderColor='#027A48'" onmouseout="if(_ssCurrentFilter!=='ok')this.style.borderColor='transparent'">
           <div style="font-size:10px;font-weight:600;color:#027A48;margin-bottom:4px">✅ 매핑 성공</div>
           <div id="ssResMatched" style="font-size:22px;font-weight:700;color:#027A48">0</div>
           <div style="font-size:10px;color:#027A48;margin-top:2px">건</div>
         </div>
-        <div style="background:var(--danger-light);border-radius:10px;padding:12px 14px;text-align:center">
+        <div onclick="filterResTable('none')" id="ssCard-none" style="background:var(--danger-light);border-radius:10px;padding:12px 14px;text-align:center;cursor:pointer;border:2px solid transparent;transition:all .15s" onmouseover="this.style.borderColor='#B42318'" onmouseout="if(_ssCurrentFilter!=='none')this.style.borderColor='transparent'">
           <div style="font-size:10px;font-weight:600;color:#B42318;margin-bottom:4px">❌ 매핑 실패</div>
           <div id="ssResUnmatched" style="font-size:22px;font-weight:700;color:#B42318">0</div>
           <div style="font-size:10px;color:#B42318;margin-top:2px">건</div>
         </div>
-      </div>
-      <!-- 탭 필터 -->
-      <div style="padding:10px 24px 0;display:flex;gap:6px;border-bottom:1px solid var(--border)">
-        <button id="ssResTabAll" onclick="showResTab('all')" style="font-size:11px;font-weight:600;padding:6px 14px;border:none;border-bottom:2px solid var(--blue);background:none;cursor:pointer;font-family:var(--font);color:var(--blue)">전체</button>
-        <button id="ssResTabOk" onclick="showResTab('ok')" style="font-size:11px;font-weight:500;padding:6px 14px;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;font-family:var(--font);color:var(--gray-400)">매핑 성공</button>
-        <button id="ssResTabNone" onclick="showResTab('none')" style="font-size:11px;font-weight:500;padding:6px 14px;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;font-family:var(--font);color:var(--gray-400)">매핑 실패</button>
       </div>
       <!-- 결과 테이블 -->
       <div style="flex:1;overflow-y:auto;padding:0 24px 16px">
@@ -709,8 +736,11 @@ body{font-family:var(--font);background:#fff;color:var(--gray-900);line-height:1
       <div style="flex:1"></div>
       <div style="display:flex;gap:8px">
         <button onclick="closeModal('salesSheetModal')" style="font-size:12px;padding:7px 16px;border:1px solid var(--gray-300);border-radius:7px;background:#fff;cursor:pointer;font-family:var(--font);color:var(--gray-600)">닫기</button>
-        <button id="ssConnectBtn" onclick="runSalesSheetMatch()" class="btn-primary" style="font-size:12px;padding:7px 16px">매칭 시작</button>
-        <button id="ssSaveBtn" onclick="ssSaveMatched()" class="btn-primary" style="font-size:12px;padding:7px 16px;display:none">저장</button>
+        <button id="ssConnectBtn" onclick="runSalesSheetMatch()" class="btn-primary" style="font-size:12px;padding:7px 16px">매핑 시작</button>
+        <button id="ssDownloadBtn" onclick="ssDownloadCurrentView()" class="excel-btn" style="font-size:12px;padding:7px 16px;display:none">
+          <svg class="excel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          엑셀 다운로드 (<span id="ssDownloadCount">0</span>건)
+        </button>
       </div>
     </div>
   </div>
@@ -3572,7 +3602,10 @@ function openSalesSheetModal() {
   document.getElementById('ssFileName').textContent = '파일을 선택하세요 (.csv)';
   document.getElementById('ssSheetUrlInput').value = '';
   document.getElementById('ssLoadResult').style.display = 'none';
+  document.getElementById('ssDataSection').style.display = 'none';
   document.getElementById('ssConnectBtn').disabled = true;
+  document.getElementById('ssConnectBtn').style.opacity = '0.4';
+  window._ssSheetData = null;
   document.getElementById('ssModalTitle').textContent = '영업데이터 업로드';
   document.getElementById('ssModalSub').textContent = '채널을 선택하고 CSV 파일을 업로드하세요';
   window._ssSheetData = null;
@@ -3581,13 +3614,44 @@ function openSalesSheetModal() {
 
 function onChannelSelect() {
   const channel = document.getElementById('ssChannelSelect').value;
-  if (!channel) return;
-  const saved = JSON.parse(localStorage.getItem('kdc_sheet_urls') || '{}');
-  if (saved[channel]) {
-    document.getElementById('ssSheetUrlInput').value = saved[channel];
-  } else {
-    document.getElementById('ssSheetUrlInput').value = '';
+  const section = document.getElementById('ssDataSection');
+  if (!channel) {
+    section.style.display = 'none';
+    return;
   }
+  section.style.display = 'flex';
+
+  // 저장된 URL 불러오기
+  const saved = JSON.parse(localStorage.getItem('kdc_sheet_urls') || '{}');
+  const urlInput = document.getElementById('ssSheetUrlInput');
+  urlInput.value = saved[channel] || '';
+
+  // 매핑 버튼 상태 업데이트
+  updateSsConnectBtn();
+}
+
+function onSheetUrlInput() {
+  // URL 입력 시 채널별 저장 + CSV 초기화
+  const channel = document.getElementById('ssChannelSelect').value;
+  const url = document.getElementById('ssSheetUrlInput').value.trim();
+  if (channel && url) {
+    const saved = JSON.parse(localStorage.getItem('kdc_sheet_urls') || '{}');
+    saved[channel] = url;
+    localStorage.setItem('kdc_sheet_urls', JSON.stringify(saved));
+    // CSV 데이터 초기화
+    window._ssSheetData = null;
+    document.getElementById('ssFileName').textContent = '파일을 선택하세요 (.csv)';
+    document.getElementById('ssCancelFileBtn').style.display = 'none';
+  }
+  updateSsConnectBtn();
+}
+
+function updateSsConnectBtn() {
+  const url = document.getElementById('ssSheetUrlInput').value.trim();
+  const hasCsv = !!window._ssSheetData;
+  const btn = document.getElementById('ssConnectBtn');
+  btn.disabled = !url && !hasCsv;
+  btn.style.opacity = (!url && !hasCsv) ? '0.4' : '1';
 }
 function checkSsReady() {}
 function clearSavedUrl() {}
@@ -3600,7 +3664,7 @@ function cancelSalesSheetFile() {
   document.getElementById('ssFileName').style.color = 'var(--gray-400)';
   document.getElementById('ssLoadResult').style.display = 'none';
   document.getElementById('ssCancelFileBtn').style.display = 'none';
-  document.getElementById('ssConnectBtn').disabled = false;
+  updateSsConnectBtn();
 }
 
 function handleSalesSheetFile(input) {
@@ -3628,8 +3692,10 @@ function handleSalesSheetFile(input) {
     result.style.background = 'var(--success-light)';
     result.style.color = '#027A48';
     result.innerHTML = `✅ ${file.name} · 총 <strong>${rows.length - 1}행</strong> 불러옴`;
-    document.getElementById('ssConnectBtn').disabled = false;
     document.getElementById('ssCancelFileBtn').style.display = 'block';
+    // CSV 올리면 URL 무효화
+    document.getElementById('ssSheetUrlInput').value = '';
+    updateSsConnectBtn();
   };
   reader.readAsText(file, 'UTF-8');
 }
@@ -3666,6 +3732,7 @@ async function runAutoSalesSheetMatch() {
   });
 
   _ssResultData = [];
+  _ssSkippedData = [];
   let totalRows = 0, skippedRows = 0;
 
   sheets.forEach(({ channel, rows }) => {
@@ -3681,7 +3748,11 @@ async function runAutoSalesSheetMatch() {
 
       const endDateRaw = String(row[COL_DATE + 1]||'').replace(/\./g,'-').trim();
       const endDate = endDateRaw.match(/^\d{2}-/) ? '20' + endDateRaw : endDateRaw;
-      if (endDate && new Date(endDate) < new Date()) { skippedRows++; return; }
+      if (endDate && new Date(endDate) < new Date()) {
+        skippedRows++;
+        _ssSkippedData.push({ rep, nameRaw, dateRaw: String(row[COL_DATE]||'').replace(/\./g,'-').trim(), phoneRaw, courseRaw });
+        return;
+      }
 
       const key = makeMatchKey(nameRaw, phoneRaw, dateRaw, courseRaw);
       const hits = lmsKeyMap[key] || [];
@@ -3738,7 +3809,9 @@ async function runAutoSalesSheetMatch() {
   document.getElementById('ssResMatched').textContent  = ok;
   document.getElementById('ssResUnmatched').textContent= none;
 
-  showResTab('all');
+  document.getElementById('ssDownloadBtn').style.display = 'inline-flex';
+  _ssCurrentFilter = 'all';
+  filterResTable('all');
   document.getElementById('salesSheetModal').classList.add('open');
 }
 
@@ -3777,7 +3850,7 @@ async function runSheetUrlMatch() {
     document.getElementById('ssLoadResult').style.background = 'var(--success-light)';
     document.getElementById('ssLoadResult').style.color = '#027A48';
     document.getElementById('ssLoadResult').innerHTML = `✅ 구글 시트 연동 성공 · 총 <strong>${rows.length - 1}행</strong> 불러옴`;
-    document.getElementById('ssConnectBtn').disabled = false;
+    updateSsConnectBtn();
 
     // URL을 채널별로 저장
     const saved = JSON.parse(localStorage.getItem('kdc_sheet_urls') || '{}');
@@ -3807,8 +3880,14 @@ function runSalesSheetMatch() {
     }, 2000);
     return; 
   }
+  // URL 입력됐으면 먼저 시트 불러오기
+  const urlVal = document.getElementById('ssSheetUrlInput').value.trim();
+  if (!window._ssSheetData && urlVal) {
+    await runSheetUrlMatch(true); // silent mode
+    if (!window._ssSheetData) return;
+  }
   if (!window._ssSheetData) { 
-    alert('CSV 파일을 업로드해주세요!'); 
+    alert('구글 시트 URL을 입력하거나 CSV 파일을 업로드해주세요!'); 
     return; 
   }
 
@@ -3904,34 +3983,49 @@ function runSalesSheetMatch() {
   showResTab('all');
 }
 
-let _ssResCurrentTab = 'all';
-function showResTab(tab) {
-  _ssResCurrentTab = tab;
-  ['all','ok','none'].forEach(t => {
-    const btn = document.getElementById('ssResTab' + (t==='all'?'All':t==='ok'?'Ok':'None'));
-    if (!btn) return;
-    btn.style.borderBottom = t === tab ? '2px solid var(--blue)' : '2px solid transparent';
-    btn.style.color = t === tab ? 'var(--blue)' : 'var(--gray-400)';
-    btn.style.fontWeight = t === tab ? '600' : '500';
+let _ssCurrentFilter = 'all';
+let _ssSkippedData = []; // 종료 차수 제외 데이터
+
+function filterResTable(filter) {
+  _ssCurrentFilter = filter;
+
+  // 카드 선택 스타일
+  const cardColors = {
+    'all': 'var(--gray-400)', 'skipped': '#B54708',
+    'tried': 'var(--blue)', 'ok': '#027A48', 'none': '#B42318'
+  };
+  ['all','skipped','tried','ok','none'].forEach(f => {
+    const card = document.getElementById('ssCard-' + f);
+    if (!card) return;
+    card.style.borderColor = f === filter ? cardColors[f] : 'transparent';
+    card.style.boxShadow = f === filter ? `0 0 0 2px ${cardColors[f]}30` : 'none';
   });
 
-  const filtered = tab === 'all' ? _ssResultData
-    : _ssResultData.filter(r => r.status === tab);
+  let filtered;
+  if (filter === 'all') filtered = _ssResultData;
+  else if (filter === 'skipped') filtered = _ssSkippedData;
+  else if (filter === 'tried') filtered = _ssResultData.filter(r => r.status === 'ok' || r.status === 'none' || r.status === 'amb');
+  else filtered = _ssResultData.filter(r => r.status === filter);
 
-  const rows = filtered.map((r,i) => {
-    const statusBadge =
-      r.status==='ok'   ? `<span class="tag t-y">매핑 성공</span>` :
-                          `<span class="tag t-n">매핑 실패</span>`;
-    const matchInfo = r.status==='ok'
-      ? `<span style="color:var(--gray-700)">${r.matched.s.name}</span> <span style="color:var(--gray-400);font-size:10px">${r.matched.course}</span>`
-      : `<span style="font-size:11px">${(r.reasons||['미확인']).map(reason => `<span style="background:#FEE2E2;color:#B42318;padding:1px 6px;border-radius:4px;margin-right:3px">${reason}</span>`).join('')}</span>`;
+  const rows = filtered.map((r, i) => {
+    const isSkipped = filter === 'skipped';
+    const statusBadge = isSkipped
+      ? `<span class="tag t-done">종료 제외</span>`
+      : r.status==='ok'
+        ? `<span class="tag t-y">매핑 성공</span>`
+        : `<span class="tag t-n">매핑 실패</span>`;
+    const matchInfo = isSkipped
+      ? `<span style="font-size:11px;color:var(--gray-400)">종료된 차수</span>`
+      : r.status==='ok'
+        ? `<span style="color:var(--gray-700)">${r.matched.s.name}</span> <span style="color:var(--gray-400);font-size:10px">${r.matched.course}</span>`
+        : `<span style="font-size:11px">${(r.reasons||['미확인']).map(reason => `<span style="background:#FEE2E2;color:#B42318;padding:1px 6px;border-radius:4px;margin-right:3px">${reason}</span>`).join('')}</span>`;
     return `<tr>
       <td style="text-align:center">${i+1}</td>
       <td>${statusBadge}</td>
-      <td style="font-weight:500">${r.rep}</td>
-      <td>${r.nameRaw}</td>
+      <td style="font-weight:500">${r.rep||'-'}</td>
+      <td>${r.nameRaw||'-'}</td>
       <td style="color:var(--gray-400)">${r.courseRaw||'-'}</td>
-      <td style="color:var(--gray-400)">${r.dateRaw}</td>
+      <td style="color:var(--gray-400)">${r.dateRaw||'-'}</td>
       <td style="font-family:monospace;font-size:11px">${r.phoneRaw ? r.phoneRaw.replace(/(\d{3})(\d+)(\d{4})/,'$1-****-$3') : '-'}</td>
       <td>${matchInfo}</td>
     </tr>`;
@@ -3949,7 +4043,62 @@ function showResTab(tab) {
       <th>결과</th>
     </tr></thead>
     <tbody>${rows || '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--gray-400)">해당 건이 없습니다.</td></tr>'}</tbody>`;
+
+  // 다운로드 버튼 건수 업데이트
+  document.getElementById('ssDownloadCount').textContent = filtered.length;
 }
+
+// 현재 보이는 테이블 기준 엑셀 다운로드
+function ssDownloadCurrentView() {
+  const channel = document.getElementById('ssChannelSelect').value;
+  let filtered;
+  if (_ssCurrentFilter === 'all') filtered = _ssResultData;
+  else if (_ssCurrentFilter === 'skipped') filtered = _ssSkippedData;
+  else if (_ssCurrentFilter === 'tried') filtered = _ssResultData.filter(r => r.status === 'ok' || r.status === 'none' || r.status === 'amb');
+  else filtered = _ssResultData.filter(r => r.status === _ssCurrentFilter);
+
+  // 원본 시트 컬럼 형식으로 다운로드
+  const headers = ['자동 NO.','팀명','학생이름','전화번호','과정명','훈련시작','훈련종료','자부담금 결제 확인','','수료 여부','정산차수','비고'];
+
+  const rows = filtered.map((r, i) => {
+    const isSkipped = _ssCurrentFilter === 'skipped';
+    // 원본 시트에서 해당 행 찾기
+    const origRows = window._ssSheetData || [];
+    const origRow = origRows.slice(1).find(row => {
+      const n = String(row[2]||'').trim();
+      const d = String(row[5]||'').replace(/\./g,'-').trim();
+      return n === r.nameRaw && d === r.dateRaw;
+    }) || [];
+
+    const no         = i + 1;
+    const teamName   = r.rep || String(origRow[1]||'');
+    const name       = r.nameRaw || String(origRow[2]||'');
+    const phone      = r.phoneRaw || String(origRow[3]||'');
+    const courseName = r.courseRaw || String(origRow[4]||'');
+    const startDate  = r.dateRaw || String(origRow[5]||'');
+    const endDate    = String(origRow[6]||'');
+    const payment    = String(origRow[7]||'');
+    const col9       = '';
+    const completed  = r.status==='ok' ? (r.matched.s.completed ? '수료' : '미수료') : '';
+    const settlement = '';
+    // 비고(L열): 결과값
+    const note = isSkipped ? '종료 차수 제외'
+      : r.status==='ok' ? '매핑 성공'
+      : r.status==='amb' ? '수동 확인 필요'
+      : (r.reasons||['미확인']).join(', ');
+
+    return [no, teamName, name, phone, courseName, startDate, endDate, payment, col9, completed, settlement, note];
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  ws['!cols'] = [{wch:8},{wch:14},{wch:12},{wch:16},{wch:30},{wch:12},{wch:12},{wch:14},{wch:4},{wch:10},{wch:10},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, ws, '매핑결과');
+  XLSX.writeFile(wb, `매핑결과_${channel}_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// 구 showResTab 호환
+function showResTab(tab) { filterResTable(tab === 'all' ? 'all' : tab); }
 
 function ssGoBack() {
   document.getElementById('ssStepSetup').style.display = 'flex';
@@ -3958,7 +4107,7 @@ function ssGoBack() {
   document.getElementById('ssModalSub').textContent = '채널을 선택하고 시트를 연동하세요';
   document.getElementById('ssConnectBtn').style.display = 'inline-flex';
   
-  document.getElementById('ssSaveBtn').style.display = 'none';
+  document.getElementById('ssDownloadBtn').style.display = 'none';
   document.getElementById('ssBackBtn').style.display = 'none';
 }
 
@@ -4081,6 +4230,24 @@ function ssDownloadResult() {
   const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
   XLSX.utils.book_append_sheet(wb, ws, '미매칭결과');
   XLSX.writeFile(wb, `업로드결과_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+
+function copyServiceEmail() {
+  const email = 'kdc-dashboard@core-silicon-497508-q6.iam.gserviceaccount.com';
+  navigator.clipboard.writeText(email).then(() => {
+    const btn = document.getElementById('copyEmailBtn');
+    btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> 복사됨!';
+    btn.style.background = 'var(--success-light)';
+    btn.style.color = '#027A48';
+    btn.style.borderColor = '#027A48';
+    setTimeout(() => {
+      btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> 복사';
+      btn.style.background = '#fff';
+      btn.style.color = 'var(--blue)';
+      btn.style.borderColor = 'var(--blue)';
+    }, 2000);
+  });
 }
 
 initData();
