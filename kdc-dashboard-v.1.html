@@ -692,7 +692,7 @@ body{font-family:var(--font);background:#fff;color:var(--gray-900);line-height:1
     </div>
 
     <!-- STEP 2: 매핑 결과 화면 -->
-    <div id="ssStepResult" style="display:none;flex:1;overflow-y:auto;flex-direction:column;min-height:0">
+    <div id="ssStepResult" style="display:none;flex:1;flex-direction:column;min-height:0;overflow:hidden">
       <!-- 요약 카드 (클릭 가능) -->
       <div style="padding:16px 24px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
         <div onclick="filterResTable('all')" id="ssCard-all" style="background:var(--gray-50);border-radius:10px;padding:12px 14px;text-align:center;cursor:pointer;border:2px solid transparent;transition:all .15s" onmouseover="this.style.borderColor='var(--gray-400)'" onmouseout="if(_ssCurrentFilter!=='all')this.style.borderColor='transparent'">
@@ -722,7 +722,7 @@ body{font-family:var(--font);background:#fff;color:var(--gray-900);line-height:1
         </div>
       </div>
       <!-- 결과 테이블 -->
-      <div style="padding:0 24px 16px">
+      <div style="flex:1;overflow-y:auto;padding:0 24px 16px;min-height:0">
         <table class="tbl" id="ssResTable" style="margin-top:12px;width:100%"></table>
       </div>
     </div>
@@ -3699,8 +3699,8 @@ function openSalesSheetModal() {
   document.getElementById('ssModalTitle').textContent = '영업시트 연동';
   document.getElementById('ssModalSub').textContent = '채널을 선택하고 시트를 연동하세요';
   window._ssSheetData = null;
-  window._ssResultData = [];
-  window._ssSkippedData = [];
+  _ssResultData = [];
+  _ssSkippedData = [];
   document.getElementById('salesSheetModal').classList.add('open');
 }
 
@@ -3868,8 +3868,8 @@ function processSheetRows(rows, channel, lmsKeyMap) {
 
 // 결과 화면으로 전환
 function showResultStep(channel, totalRows, resultData, skippedData) {
-  window._ssResultData  = resultData;
-  window._ssSkippedData = skippedData;
+  _ssResultData  = resultData;
+  _ssSkippedData = skippedData;
 
   // 매핑 성공 건 자동 저장
   const okResults = resultData.filter(r => r.status === 'ok');
