@@ -722,8 +722,8 @@ body{font-family:var(--font);background:#fff;color:var(--gray-900);line-height:1
         </div>
       </div>
       <!-- 결과 테이블 -->
-      <div style="flex:1;overflow-y:auto;padding:0 24px 16px">
-        <table class="tbl" id="ssResTable" style="margin-top:12px"></table>
+      <div style="padding:0 24px 16px">
+        <table class="tbl" id="ssResTable" style="margin-top:12px;width:100%"></table>
       </div>
     </div>
 
@@ -1945,14 +1945,15 @@ async function saveMappingToSheet(channel, results) {
       newRows.unshift(['영업채널','학습자이름','전화번호','개강일','과정명','영업담당자','저장일시']);
     }
 
-    await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_CONFIG.resultSheetId}/values/A:G:append?valueInputOption=RAW`,
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_CONFIG.resultSheetId}/values/A1:append?valueInputOption=RAW`,
       {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ values: newRows })
       }
     );
+    if (!res.ok) { console.error('시트 저장 실패:', res.status); return -1; }
     return newRows.length;
   } catch(e) {
     console.error('매핑 저장 실패:', e);
@@ -2051,13 +2052,13 @@ async function saveSheetByName(sheetName, rows) {
 async function saveBookmarksToSheet() {
   const rows = [['id', '북마크명', '컬럼목록']];
   statsBookmarks.forEach(b => rows.push([b.id, b.title, b.cols.join(',')]));
-  const ok = await saveSheetByName('통계북마크', rows);
+  const ok = await saveSheetByName('5. 통계북마크', rows);
   if (ok) console.log('✅ 북마크 구글 시트 저장 완료');
   return ok;
 }
 
 async function loadBookmarksFromSheet() {
-  const rows = await fetchSheetByName('통계북마크');
+  const rows = await fetchSheetByName('5. 통계북마크');
   if (!rows || rows.length <= 1) return false;
   const loaded = rows.slice(1).filter(r => r[0] && r[1] && r[2]).map(r => ({
     id:    Number(r[0]),
