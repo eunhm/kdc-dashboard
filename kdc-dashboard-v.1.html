@@ -3606,8 +3606,12 @@ function saveSheetUrl(channel, url) {
 // 모달 열기
 function openSalesSheetModal() {
   const sel = document.getElementById('ssChannelSelect');
+  // 설정된 영업시트 채널 + 기존 LMS 채널 합치기
+  const sheetChannels = (GOOGLE_CONFIG.sheets||[]).map(s => s.channel);
+  const lmsChannels = getAllChannels();
+  const allCh = [...new Set([...sheetChannels, ...lmsChannels])].sort();
   sel.innerHTML = '<option value="">채널을 선택하세요</option>' +
-    getAllChannels().map(ch => `<option value="${ch}">${ch}</option>`).join('');
+    allCh.map(ch => `<option value="${ch}">${ch}</option>`).join('');
   document.getElementById('ssFileName').textContent = '파일을 선택하세요 (.csv)';
   document.getElementById('ssSheetUrlInput').value = '';
   document.getElementById('ssLoadResult').style.display = 'none';
