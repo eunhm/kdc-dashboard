@@ -2954,7 +2954,7 @@ function toggleMonthPanel(courseId, monthIdx){
       <div class="mp-stat" style="cursor:pointer" onclick="openStudentModal(${courseId},${monthIdx},'partial')">
         <div class="mp-stat-label">미수료인원</div>
         ${(()=>{
-          const monthStu = c.students.filter(s=>s.month===monthIdx);
+          const monthStu = c.students.filter(s=>s.month===monthIdx && s.paid && s.enrolled !== '취소');
           const total = monthStu.filter(s=>!s.completed).length;
           const confirmed = monthStu.filter(s=>!s.completed && isFinished((c.batches.find(b=>b.month===monthIdx)?.sub_batches||[]).find(sb=>sb.start===s.openDate)?.end||'')).length;
           const color = 'var(--warning)';
